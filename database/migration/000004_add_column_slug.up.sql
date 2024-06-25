@@ -1,0 +1,3 @@
+ALTER TABLE posts ADD COLUMN slug varchar(100) NOT NULL ;
+
+ALTER TABLE tags ADD COLUMN slug varchar(100) NOT NULL;
