@@ -13,6 +13,7 @@ type PostRepositoryInterface interface {
 	Create(data *models.Post) error
 	GetPosts(ctx context.Context, offset, limit int) ([]models.PostWithTag, error)
 	UpdateOne(tx *gorm.DB, data models.Post, updatedField, query string, args ...interface{}) error
+	DeleteOne(tx *gorm.DB, query string, args ...any) error
 	DbTransaction
 }
 
@@ -68,6 +69,15 @@ func (r *PostRepository) FindOne(ctx context.Context, query string, args ...inte
 	}
 
 	return post, nil
+}
+
+func (r *PostRepository) DeleteOne(tx *gorm.DB, query string, args ...any) error {
+	if err := tx.Model(models.Post{}).Where(query, args...).Delete(models.Post{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
 }
 
 func (r *PostRepository) UpdateOne(tx *gorm.DB, data models.Post, updatedField, query string, args ...interface{}) error {

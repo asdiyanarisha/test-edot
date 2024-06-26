@@ -20,6 +20,7 @@ type Service interface {
 	GetPostService(ctx context.Context, payload dto.ParamGetPost) (any, error)
 	GetPostByIdService(ctx context.Context, postId int) (any, error)
 	UpdatePostService(ctx context.Context, postId int, payload dto.AddPost) error
+	DeletePostService(ctx context.Context, postId int) error
 }
 
 type service struct {
@@ -36,6 +37,44 @@ func NewService(f *factory.Factory) Service {
 		TagRepository:    f.TagRepository,
 		PosTagRepository: f.PostTagRepository,
 	}
+}
+
+func (s *service) DeletePostService(ctx context.Context, postId int) error {
+	post, err := s.PostRepository.FindOneWithTag(ctx, "id = ?", postId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return constants.ErrorPostNotFound
+		}
+
+		return err
+	}
+
+	tx := s.PostRepository.Begin(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			s.PostRepository.Rollback()
+		}
+	}()
+
+	if err := s.PostRepository.Error(); err != nil {
+		return err
+	}
+
+	if err := s.PostRepository.DeleteOne(tx, "id = ?", postId); err != nil {
+		return err
+	}
+
+	for _, tag := range post.Tags {
+		if err := s.PosTagRepository.DeleteOne(tx, "id_post = ? and id_tag = ?", postId, tag.ID); err != nil {
+			return err
+		}
+	}
+
+	if err := s.PostRepository.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *service) UpdatePostService(ctx context.Context, postId int, payload dto.AddPost) error {

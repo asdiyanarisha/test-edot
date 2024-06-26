@@ -89,6 +89,30 @@ func (h *handler) GetPostByIdHandler(g *gin.Context) {
 	return
 }
 
+func (h *handler) DeletePostHandler(g *gin.Context) {
+	postIdParam := g.Param("id")
+
+	postId, err := strconv.Atoi(postIdParam)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	if err := h.service.DeletePostService(g, postId); err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusOK, dto.Response{
+		Message: "post has been deleted",
+	})
+	return
+}
+
 func (h *handler) UpdatePostHandler(g *gin.Context) {
 	postIdParam := g.Param("id")
 
