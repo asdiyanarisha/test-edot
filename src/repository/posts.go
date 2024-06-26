@@ -8,6 +8,7 @@ import (
 
 type PostRepositoryInterface interface {
 	FindOne(ctx context.Context, query string, args ...interface{}) (models.Post, error)
+	FindOneWithTag(ctx context.Context, query string, args ...interface{}) (models.PostWithTag, error)
 	Create(data *models.Post) error
 	GetPosts(ctx context.Context, offset, limit int) ([]models.PostWithTag, error)
 	DbTransaction
@@ -62,6 +63,18 @@ func (r *PostRepository) FindOne(ctx context.Context, query string, args ...inte
 
 	if err := r.Database.WithContext(ctx).Model(models.Post{}).Where(query, args...).First(&post).Error; err != nil {
 		return models.Post{}, err
+	}
+
+	return post, nil
+}
+
+func (r *PostRepository) FindOneWithTag(ctx context.Context, query string, args ...interface{}) (models.PostWithTag, error) {
+	var post models.PostWithTag
+
+	if err := r.Database.WithContext(ctx).Model(models.PostWithTag{}).Preload("Tags").
+		Where(query, args...).
+		Take(&post).Error; err != nil {
+		return models.PostWithTag{}, err
 	}
 
 	return post, nil

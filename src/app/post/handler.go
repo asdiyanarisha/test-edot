@@ -3,6 +3,7 @@ package post
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 	"test-asset-fendr/src/dto"
 	"test-asset-fendr/src/factory"
 )
@@ -48,6 +49,32 @@ func (h *handler) GetPostHandler(g *gin.Context) {
 		return
 	}
 	res, err := h.service.GetPostService(g, payload)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusCreated, dto.Response{
+		Message: "post has been resulted",
+		Data:    res,
+	})
+	return
+}
+
+func (h *handler) GetPostByIdHandler(g *gin.Context) {
+	postIdParam := g.Param("id")
+
+	postId, err := strconv.Atoi(postIdParam)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	res, err := h.service.GetPostByIdService(g, postId)
 	if err != nil {
 		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error: err.Error(),

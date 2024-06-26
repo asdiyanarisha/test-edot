@@ -18,6 +18,7 @@ import (
 type Service interface {
 	AddPostService(ctx context.Context, payload dto.AddPost) error
 	GetPostService(ctx context.Context, payload dto.ParamGetPost) (any, error)
+	GetPostByIdService(ctx context.Context, postId int) (any, error)
 }
 
 type service struct {
@@ -34,6 +35,31 @@ func NewService(f *factory.Factory) Service {
 		TagRepository:    f.TagRepository,
 		PosTagRepository: f.PostTagRepository,
 	}
+}
+
+func (s *service) GetPostByIdService(ctx context.Context, postId int) (any, error) {
+	var (
+		tags []string
+	)
+
+	post, err := s.PostRepository.FindOneWithTag(ctx, "id = ?", postId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, constants.ErrorPostNotFound
+		}
+		
+		return nil, err
+	}
+
+	for _, tag := range post.Tags {
+		tags = append(tags, tag.Label)
+	}
+
+	return dto.AddPost{
+		Title:   post.Title,
+		Content: post.Content,
+		Tags:    tags,
+	}, err
 }
 
 func (s *service) GetPostService(ctx context.Context, payload dto.ParamGetPost) (any, error) {
