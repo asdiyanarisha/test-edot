@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"gorm.io/gorm"
+	"strings"
 	"test-asset-fendr/src/models"
 )
 
@@ -11,6 +12,7 @@ type PostRepositoryInterface interface {
 	FindOneWithTag(ctx context.Context, query string, args ...interface{}) (models.PostWithTag, error)
 	Create(data *models.Post) error
 	GetPosts(ctx context.Context, offset, limit int) ([]models.PostWithTag, error)
+	UpdateOne(tx *gorm.DB, data models.Post, updatedField, query string, args ...interface{}) error
 	DbTransaction
 }
 
@@ -66,6 +68,17 @@ func (r *PostRepository) FindOne(ctx context.Context, query string, args ...inte
 	}
 
 	return post, nil
+}
+
+func (r *PostRepository) UpdateOne(tx *gorm.DB, data models.Post, updatedField, query string, args ...interface{}) error {
+	if err := tx.Model(models.Post{}).
+		Select(strings.Split(updatedField, ",")).
+		Where(query, args...).Debug().Updates(data).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return nil
 }
 
 func (r *PostRepository) FindOneWithTag(ctx context.Context, query string, args ...interface{}) (models.PostWithTag, error) {

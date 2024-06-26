@@ -19,6 +19,7 @@ type Service interface {
 	AddPostService(ctx context.Context, payload dto.AddPost) error
 	GetPostService(ctx context.Context, payload dto.ParamGetPost) (any, error)
 	GetPostByIdService(ctx context.Context, postId int) (any, error)
+	UpdatePostService(ctx context.Context, postId int, payload dto.AddPost) error
 }
 
 type service struct {
@@ -37,6 +38,115 @@ func NewService(f *factory.Factory) Service {
 	}
 }
 
+func (s *service) UpdatePostService(ctx context.Context, postId int, payload dto.AddPost) error {
+	post, err := s.PostRepository.FindOneWithTag(ctx, "id = ?", postId)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return constants.ErrorPostNotFound
+		}
+
+		return err
+	}
+
+	tx := s.PostRepository.Begin(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			s.PostRepository.Rollback()
+		}
+	}()
+
+	if err := s.PostRepository.Error(); err != nil {
+		return err
+	}
+
+	// process
+	if err := s.UpdatePost(tx, postId, payload, post); err != nil {
+		return err
+	}
+
+	if err := s.UpdateTag(ctx, tx, postId, payload, post); err != nil {
+		return err
+	}
+
+	if err := s.PostRepository.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) UpdateTag(ctx context.Context, tx *gorm.DB, postId int, payload dto.AddPost, post models.PostWithTag) error {
+	mapUpdatedTag := map[string]bool{}
+
+	mapTags := map[string]bool{}
+	mapTagsId := map[string]int{}
+	for _, tag := range post.Tags {
+		mapTags[tag.Slug] = true
+		mapTagsId[tag.Slug] = tag.ID
+	}
+
+	for _, updateTag := range payload.Tags {
+		tagLower := strings.ReplaceAll(strings.ToLower(updateTag), " ", "_")
+		if mapTags[tagLower] {
+			delete(mapTags, tagLower)
+			delete(mapTagsId, tagLower)
+			continue
+		}
+
+		dTag, err := s.TagRepository.FindOne(ctx, "slug = ?", tagLower)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		if dTag == (models.Tag{}) {
+			data := models.Tag{
+				Label: updateTag,
+				Slug:  tagLower,
+			}
+
+			if err := s.TagRepository.Create(tx, &data); err != nil {
+				return err
+			}
+
+			dTag.ID = data.ID
+		}
+
+		if err := s.InsertPostTag(tx, postId, dTag.ID); err != nil {
+			return err
+		}
+
+		mapUpdatedTag[tagLower] = true
+	}
+
+	// delete in active tag
+	for _, i := range mapTagsId {
+		if err := s.PosTagRepository.DeleteOne(tx, "id_post = ? and id_tag = ?", postId, i); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+func (s *service) UpdatePost(tx *gorm.DB, postId int, payload dto.AddPost, post models.PostWithTag) error {
+	updatedField := "content,updated_at"
+	updatedData := models.Post{
+		Content:   payload.Content,
+		UpdatedAt: time.Now(),
+	}
+
+	slugNew := s.CreateSlug(payload.Title)
+	if slugNew != post.Slug {
+		updatedData.Slug = slugNew
+		updatedData.Title = payload.Title
+		updatedField = updatedField + ",slug,title"
+	}
+
+	if err := s.PostRepository.UpdateOne(tx, updatedData, updatedField, "id = ?", postId); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *service) GetPostByIdService(ctx context.Context, postId int) (any, error) {
 	var (
 		tags []string
@@ -47,7 +157,7 @@ func (s *service) GetPostByIdService(ctx context.Context, postId int) (any, erro
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, constants.ErrorPostNotFound
 		}
-		
+
 		return nil, err
 	}
 
@@ -85,6 +195,7 @@ func (s *service) FormatterPosts(posts []models.PostWithTag) []dto.AddPost {
 		}
 
 		result := dto.AddPost{
+			Id:      post.ID,
 			Title:   post.Title,
 			Content: post.Content,
 			Tags:    tags,

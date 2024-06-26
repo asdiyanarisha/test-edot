@@ -16,6 +16,7 @@ type (
 		ID      int    `json:"id"`
 		Title   string `json:"title"`
 		Content string `json:"content"`
+		Slug    string `json:"slug"`
 		Tags    []Tag  `gorm:"many2many:post_tags;foreignKey:ID;joinForeignKey:IdPost;joinReferences:IdTag"`
 	}
 )

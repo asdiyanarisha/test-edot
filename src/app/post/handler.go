@@ -56,7 +56,7 @@ func (h *handler) GetPostHandler(g *gin.Context) {
 		return
 	}
 
-	g.JSON(http.StatusCreated, dto.Response{
+	g.JSON(http.StatusOK, dto.Response{
 		Message: "post has been resulted",
 		Data:    res,
 	})
@@ -82,9 +82,41 @@ func (h *handler) GetPostByIdHandler(g *gin.Context) {
 		return
 	}
 
-	g.JSON(http.StatusCreated, dto.Response{
+	g.JSON(http.StatusOK, dto.Response{
 		Message: "post has been resulted",
 		Data:    res,
+	})
+	return
+}
+
+func (h *handler) UpdatePostHandler(g *gin.Context) {
+	postIdParam := g.Param("id")
+
+	var payload dto.AddPost
+	if err := g.ShouldBindJSON(&payload); err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	postId, err := strconv.Atoi(postIdParam)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	if err := h.service.UpdatePostService(g, postId, payload); err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusOK, dto.Response{
+		Message: "post has been updated",
 	})
 	return
 }
