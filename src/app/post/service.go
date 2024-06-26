@@ -17,6 +17,7 @@ import (
 
 type Service interface {
 	AddPostService(ctx context.Context, payload dto.AddPost) error
+	GetPostService(ctx context.Context, payload dto.ParamGetPost) (any, error)
 }
 
 type service struct {
@@ -33,6 +34,39 @@ func NewService(f *factory.Factory) Service {
 		TagRepository:    f.TagRepository,
 		PosTagRepository: f.PostTagRepository,
 	}
+}
+
+func (s *service) GetPostService(ctx context.Context, payload dto.ParamGetPost) (any, error) {
+	limit := 20
+	if payload.Limit != 0 {
+		limit = payload.Limit
+	}
+
+	posts, err := s.PostRepository.GetPosts(ctx, payload.Offset, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.FormatterPosts(posts), nil
+}
+
+func (s *service) FormatterPosts(posts []models.PostWithTag) []dto.AddPost {
+	var results []dto.AddPost
+	for _, post := range posts {
+		var tags []string
+		for _, tag := range post.Tags {
+			tags = append(tags, tag.Label)
+		}
+
+		result := dto.AddPost{
+			Title:   post.Title,
+			Content: post.Content,
+			Tags:    tags,
+		}
+
+		results = append(results, result)
+	}
+	return results
 }
 
 func (s *service) AddPostService(ctx context.Context, payload dto.AddPost) error {

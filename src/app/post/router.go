@@ -6,4 +6,5 @@ import (
 
 func (h *handler) PostRouter(g *gin.RouterGroup) {
 	g.POST("", h.AddPostHandler)
+	g.GET("", h.GetPostHandler)
 }

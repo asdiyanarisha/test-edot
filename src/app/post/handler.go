@@ -38,3 +38,26 @@ func (h *handler) AddPostHandler(g *gin.Context) {
 	})
 	return
 }
+
+func (h *handler) GetPostHandler(g *gin.Context) {
+	var payload dto.ParamGetPost
+	if err := g.ShouldBindQuery(&payload); err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	res, err := h.service.GetPostService(g, payload)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusCreated, dto.Response{
+		Message: "post has been resulted",
+		Data:    res,
+	})
+	return
+}
