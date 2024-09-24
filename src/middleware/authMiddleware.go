@@ -28,8 +28,7 @@ func Bearer() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userId", claims["userId"].(string))
-		c.Set("role", claims["role"].(string))
+		c.Set("userClaim", claims["userClaim"].(dto.UserClaimJwt))
 
 		c.Next()
 		return

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 	"test-edot/src/dto"
 	"test-edot/src/factory"
 )
@@ -20,15 +19,9 @@ func NewHandler(f *factory.Factory) *handler {
 }
 
 func (h *handler) UserMe(g *gin.Context) {
-	userId, err := strconv.Atoi(g.Value("userId").(string))
-	if err != nil {
-		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
-			Error: err.Error(),
-		})
-		return
-	}
+	userClaim := g.Value("userClaim").(dto.UserClaimJwt)
 
-	fmt.Println(userId)
+	fmt.Println(userClaim)
 
 	g.JSON(http.StatusCreated, dto.Response{
 		Message: "user fetched",

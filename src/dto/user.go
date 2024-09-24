@@ -13,4 +13,9 @@ type (
 		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
+
+	UserClaimJwt struct {
+		UserId int    `json:"user_id"`
+		Role   string `json:"role"`
+	}
 )
