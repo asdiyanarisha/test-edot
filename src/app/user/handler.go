@@ -17,6 +17,29 @@ func NewHandler(f *factory.Factory) *handler {
 	}
 }
 
+func (h *handler) LoginUser(g *gin.Context) {
+	var payload dto.LoginUser
+	if err := g.ShouldBindJSON(&payload); err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+	token, err := h.service.Login(g, payload)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusCreated, dto.Response{
+		Message: "login successfully",
+		Data:    dto.ResponseToken{Token: token},
+	})
+	return
+}
+
 func (h *handler) RegisterUser(g *gin.Context) {
 	var payload dto.RegisterUser
 	if err := g.ShouldBindJSON(&payload); err != nil {

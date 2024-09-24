@@ -9,4 +9,6 @@ var (
 	FormatEmailInvalid       = errors.New("email format invalid")
 	FormatPhoneInvalid       = errors.New("phone number format invalid, range 8-15 numeric")
 	UserAlreadyInserted      = errors.New("user already inserted")
+	UserNotFound             = errors.New("user not found")
+	InvalidPassword          = errors.New("password invalid")
 )

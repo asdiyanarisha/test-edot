@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"regexp"
 	"test-edot/constants"
@@ -17,6 +18,7 @@ import (
 
 type Service interface {
 	Register(ctx context.Context, user dto.RegisterUser) error
+	Login(ctx context.Context, payload dto.LoginUser) (string, error)
 }
 
 type service struct {
@@ -32,7 +34,7 @@ func NewService(f *factory.Factory) Service {
 	}
 }
 
-func (s service) ValidateRegister(ctx context.Context, user dto.RegisterUser) error {
+func (s service) validateRegister(user dto.RegisterUser) error {
 	if !constants.MapRoleAvail[user.Role] {
 		return constants.RolePayloadInvalid
 	}
@@ -49,6 +51,34 @@ func (s service) ValidateRegister(ctx context.Context, user dto.RegisterUser) er
 
 	return nil
 }
+
+func (s service) checkPasswordHash(password, hashedPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
+}
+
+func (s service) Login(ctx context.Context, payload dto.LoginUser) (string, error) {
+	userTrack, err := s.UserRepository.FindOne(ctx, "id,role,email,phone,password", "email = ? or phone = ?", payload.Email, payload.Email)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
+	}
+
+	if userTrack == (models.User{}) {
+		return "", constants.UserNotFound
+	}
+
+	if !s.checkPasswordHash(payload.Password, userTrack.Password) {
+		return "", constants.InvalidPassword
+	}
+
+	token, err := util.GenerateJWT(userTrack)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
 func (s service) Register(ctx context.Context, user dto.RegisterUser) error {
 	userTrack, err := s.UserRepository.FindOne(ctx, "email,phone", "email = ? or phone = ?", user.Email, user.Phone)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -59,7 +89,7 @@ func (s service) Register(ctx context.Context, user dto.RegisterUser) error {
 		return constants.UserAlreadyInserted
 	}
 
-	if err := s.ValidateRegister(ctx, user); err != nil {
+	if err := s.validateRegister(user); err != nil {
 		return err
 	}
 

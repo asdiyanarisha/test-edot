@@ -8,4 +8,9 @@ type (
 		Role     string `json:"role" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
+
+	LoginUser struct {
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
 )
