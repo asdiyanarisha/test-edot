@@ -18,4 +18,10 @@ func NewHttp(g *gin.Engine, f *factory.Factory) {
 
 	userGroup := api.Group("users")
 	user.NewHandler(f).UserRouter(userGroup)
+
+	// bearer section
+
+	userGroup.Use(middleware.Bearer())
+	user.NewHandler(f).UserBearerRouter(userGroup)
+
 }

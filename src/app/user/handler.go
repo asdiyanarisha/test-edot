@@ -1,8 +1,10 @@
 package user
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 	"test-edot/src/dto"
 	"test-edot/src/factory"
 )
@@ -15,6 +17,23 @@ func NewHandler(f *factory.Factory) *handler {
 	return &handler{
 		service: NewService(f),
 	}
+}
+
+func (h *handler) UserMe(g *gin.Context) {
+	userId, err := strconv.Atoi(g.Value("userId").(string))
+	if err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	fmt.Println(userId)
+
+	g.JSON(http.StatusCreated, dto.Response{
+		Message: "user fetched",
+	})
+	return
 }
 
 func (h *handler) LoginUser(g *gin.Context) {

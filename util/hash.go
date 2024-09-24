@@ -1,8 +1,10 @@
 package util
 
 import (
+	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"strconv"
 	"test-edot/src/models"
 	"time"
 )
@@ -14,13 +16,13 @@ func HashPassword(password string) (string, error) {
 	}
 	return string(hashedPassword), nil
 }
+
 func GenerateJWT(user models.User) (string, error) {
 	secretKey := []byte(GetEnv("JWT_SECRET_KEY", ""))
 
-	// Membuat klaim (claims) untuk token JWT
 	claims := jwt.MapClaims{
 		"authorized": true,
-		"userId":     user.Id,
+		"userId":     strconv.Itoa(user.Id),
 		"role":       user.Role,
 		"exp":        time.Now().Add(time.Hour * 1).Unix(), // Token berlaku selama 1 jam
 	}
@@ -35,4 +37,28 @@ func GenerateJWT(user models.User) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+func ValidateJWT(tokenString string) (jwt.MapClaims, error) {
+	secretKey := []byte(GetEnv("JWT_SECRET_KEY", ""))
+
+	// Parsing token dan validasi
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Memastikan algoritma yang digunakan adalah HMAC SHA256
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secretKey, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Memeriksa apakah token valid
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	} else {
+		return nil, fmt.Errorf("invalid token")
+	}
 }
