@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"gorm.io/gorm"
-	"test-asset-fendr/src/models"
+	"test-edot/src/models"
 )
 
 type TagRepositoryInterface interface {

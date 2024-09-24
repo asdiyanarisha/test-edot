@@ -2,7 +2,7 @@ package repository
 
 import (
 	"gorm.io/gorm"
-	"test-asset-fendr/src/models"
+	"test-edot/src/models"
 )
 
 type PostTagRepositoryInterface interface {

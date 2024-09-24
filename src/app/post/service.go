@@ -7,11 +7,11 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"strings"
-	"test-asset-fendr/constants"
-	"test-asset-fendr/src/dto"
-	"test-asset-fendr/src/factory"
-	"test-asset-fendr/src/models"
-	"test-asset-fendr/src/repository"
+	"test-edot/constants"
+	"test-edot/src/dto"
+	"test-edot/src/factory"
+	"test-edot/src/models"
+	"test-edot/src/repository"
 	"time"
 )
 

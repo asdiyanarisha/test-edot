@@ -2,8 +2,8 @@ package factory
 
 import (
 	"go.uber.org/zap"
-	"test-asset-fendr/database"
-	"test-asset-fendr/src/repository"
+	"test-edot/database"
+	"test-edot/src/repository"
 )
 
 type Factory struct {
@@ -11,6 +11,7 @@ type Factory struct {
 	PostRepository    repository.PostRepositoryInterface
 	TagRepository     repository.TagRepositoryInterface
 	PostTagRepository repository.PostTagRepositoryInterface
+	UserRepository    repository.UserRepositoryInterface
 }
 
 func NewFactory() *Factory {
@@ -23,5 +24,6 @@ func NewFactory() *Factory {
 		PostRepository:    repository.NewPostRepository(db),
 		TagRepository:     repository.NewTagRepository(db),
 		PostTagRepository: repository.NewPostTagRepository(db),
+		UserRepository:    repository.NewUserRepository(db),
 	}
 }

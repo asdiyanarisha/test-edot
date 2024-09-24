@@ -4,8 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
-	"test-asset-fendr/src/dto"
-	"test-asset-fendr/src/factory"
+	"test-edot/src/dto"
+	"test-edot/src/factory"
 )
 
 type handler struct {

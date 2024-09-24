@@ -1,3 +1,0 @@
-ALTER TABLE posts DROP COLUMN slug;
-
-ALTER TABLE tags DROP COLUMN slug;

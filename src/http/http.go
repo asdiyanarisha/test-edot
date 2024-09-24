@@ -2,9 +2,9 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
-	"test-asset-fendr/src/app/post"
-	"test-asset-fendr/src/factory"
-	"test-asset-fendr/src/middleware"
+	"test-edot/src/app/user"
+	"test-edot/src/factory"
+	"test-edot/src/middleware"
 )
 
 func NewHttp(g *gin.Engine, f *factory.Factory) {
@@ -14,5 +14,8 @@ func NewHttp(g *gin.Engine, f *factory.Factory) {
 	// Here we define a router group
 	api := g.Group("/api")
 
-	post.NewHandler(f).PostRouter(api.Group("posts"))
+	//post.NewHandler(f).PostRouter(api.Group("posts"))
+
+	userGroup := api.Group("users")
+	user.NewHandler(f).UserRouter(userGroup)
 }

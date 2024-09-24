@@ -4,7 +4,7 @@ import (
 	"context"
 	"gorm.io/gorm"
 	"strings"
-	"test-asset-fendr/src/models"
+	"test-edot/src/models"
 )
 
 type PostRepositoryInterface interface {

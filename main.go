@@ -3,10 +3,10 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"log"
-	"test-asset-fendr/database"
-	"test-asset-fendr/src/factory"
-	"test-asset-fendr/src/http"
-	"test-asset-fendr/util"
+	"test-edot/database"
+	"test-edot/src/factory"
+	"test-edot/src/http"
+	"test-edot/util"
 )
 
 func main() {
