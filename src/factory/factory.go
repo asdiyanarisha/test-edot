@@ -12,6 +12,7 @@ type Factory struct {
 	TagRepository     repository.TagRepositoryInterface
 	PostTagRepository repository.PostTagRepositoryInterface
 	UserRepository    repository.UserRepositoryInterface
+	ShopRepository    repository.ShopRepositoryInterface
 }
 
 func NewFactory() *Factory {
@@ -25,5 +26,6 @@ func NewFactory() *Factory {
 		TagRepository:     repository.NewTagRepository(db),
 		PostTagRepository: repository.NewPostTagRepository(db),
 		UserRepository:    repository.NewUserRepository(db),
+		ShopRepository:    repository.NewShopRepository(db),
 	}
 }

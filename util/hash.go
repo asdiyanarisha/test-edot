@@ -1,9 +1,11 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"test-edot/constants"
 	"test-edot/src/dto"
 	"test-edot/src/models"
 	"time"
@@ -17,16 +19,25 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
+func GetClaim(userClaim map[string]interface{}) dto.UserClaimJwt {
+	return dto.UserClaimJwt{
+		UserId: int(userClaim["user_id"].(float64)),
+		Role:   userClaim["role"].(string),
+	}
+}
+
 func GenerateJWT(user models.User) (string, error) {
 	secretKey := []byte(GetEnv("JWT_SECRET_KEY", ""))
 
+	userClaims := dto.UserClaimJwt{
+		UserId: user.Id,
+		Role:   user.Role,
+	}
+
 	claims := jwt.MapClaims{
 		"authorized": true,
-		"userClaim": dto.UserClaimJwt{
-			UserId: user.Id,
-			Role:   user.Role,
-		},
-		"exp": time.Now().Add(time.Minute * 1).Unix(), // Token berlaku selama 1 jam
+		"userClaim":  userClaims,
+		"exp":        time.Now().Add(time.Hour * 3).Unix(), // Token berlaku selama 1 jam
 	}
 
 	// Membuat token dengan algoritma signing HMAC SHA256 dan klaim yang sudah diset
@@ -52,6 +63,10 @@ func ValidateJWT(tokenString string) (jwt.MapClaims, error) {
 	})
 
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, constants.BearerExpired
+		}
+
 		return nil, err
 	}
 
