@@ -15,4 +15,5 @@ var (
 	InvalidPassword          = errors.New("password invalid")
 	BearerExpired            = errors.New("bearer expired")
 	ProductAlreadyInserted   = errors.New("product already inserted")
+	WarehouseAlreadyExisted  = errors.New("warehouse already existed")
 )

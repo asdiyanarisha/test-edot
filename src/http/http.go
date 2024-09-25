@@ -5,6 +5,7 @@ import (
 	"test-edot/src/app/product"
 	"test-edot/src/app/shop"
 	"test-edot/src/app/user"
+	"test-edot/src/app/warehouse"
 	"test-edot/src/factory"
 	"test-edot/src/middleware"
 )
@@ -34,4 +35,8 @@ func NewHttp(g *gin.Engine, f *factory.Factory) {
 	// product section
 	productGroup := api.Group("product")
 	product.NewHandler(f).ProductBearerShopRouter(productGroup)
+
+	// product section
+	warehouseGroup := api.Group("warehouse")
+	warehouse.NewHandler(f).WarehouseBearerShopRouter(warehouseGroup)
 }
