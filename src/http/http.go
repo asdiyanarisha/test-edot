@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
+	"test-edot/src/app/product"
 	"test-edot/src/app/shop"
 	"test-edot/src/app/user"
 	"test-edot/src/factory"
@@ -15,18 +16,22 @@ func NewHttp(g *gin.Engine, f *factory.Factory) {
 	// Here we define a router group
 	api := g.Group("/api")
 
-	//post.NewHandler(f).PostRouter(api.Group("posts"))
+	product.NewHandler(f).ProductRouter(api.Group("/products"))
 
+	// user section
 	userGroup := api.Group("users")
 	user.NewHandler(f).UserRouter(userGroup)
 
-	// bearer section
 	userGroup.Use(middleware.Bearer())
 	user.NewHandler(f).UserBearerRouter(userGroup)
 
-	shopGroup := api.Group("shops")
-	shopGroup.Use(middleware.BearerShop())
+	// shop section
+	shopsGroup := api.Group("shops")
+	shopsGroup.Use(middleware.BearerShop())
 
-	shop.NewHandler(f).ShopRouter(shopGroup)
+	shop.NewHandler(f).ShopRouter(shopsGroup)
 
+	// product section
+	productGroup := api.Group("product")
+	product.NewHandler(f).ProductBearerShopRouter(productGroup)
 }

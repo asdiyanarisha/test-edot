@@ -1,0 +1,3 @@
+ALTER TABLE `products`
+    ADD COLUMN `shop_id` BIGINT UNSIGNED NOT NULL DEFAULT 0 AFTER `price`,
+    ADD CONSTRAINT fk_product_shop_id FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE;
