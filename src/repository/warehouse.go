@@ -9,6 +9,7 @@ import (
 type WarehouseRepositoryInterface interface {
 	Create(ctx context.Context, Warehouse *models.Warehouse) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.Warehouse, error)
+	Find(ctx context.Context, selectField, query string, args ...any) ([]models.Warehouse, error)
 }
 
 type WarehouseRepository struct {
@@ -43,4 +44,19 @@ func (r *WarehouseRepository) FindOne(ctx context.Context, selectField, query st
 	}
 
 	return Warehouse, nil
+}
+
+func (r *WarehouseRepository) Find(ctx context.Context, selectField, query string, args ...any) ([]models.Warehouse, error) {
+	var warehouses []models.Warehouse
+	dbCon := r.Database.WithContext(ctx).Model(models.Warehouse{})
+
+	if selectField != "*" {
+		dbCon = dbCon.Select(selectField)
+	}
+
+	if err := dbCon.Where(query, args...).Find(&warehouses).Error; err != nil {
+		return []models.Warehouse{}, err
+	}
+
+	return warehouses, nil
 }

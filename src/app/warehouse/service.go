@@ -3,6 +3,7 @@ package warehouse
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"test-edot/constants"
@@ -16,6 +17,7 @@ import (
 
 type Service interface {
 	AddWarehouse(ctx context.Context, payload dto.PayloadAddWarehouse, userClaim dto.UserClaimJwt) error
+	GetWarehouses(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.ParameterQueryWarehouse) (any, error)
 }
 
 type service struct {
@@ -34,6 +36,22 @@ func NewService(f *factory.Factory) Service {
 		ProductRepository:   f.ProductRepository,
 		WarehouseRepository: f.WarehouseRepository,
 	}
+}
+
+func (s *service) GetWarehouses(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.ParameterQueryWarehouse) (any, error) {
+	q := "user_id = ?"
+	if payload.Status != "" {
+		q += fmt.Sprintf(" AND status = %s", payload.Status)
+	}
+
+	fields := "id,name,location,is_active,created_at,updated_at"
+	warehouses, err := s.WarehouseRepository.Find(ctx, fields, q, userClaim.UserId)
+	if err != nil {
+		s.Log.Error("error fetch warehouses", zap.Error(err), zap.Int("user_id", userClaim.UserId))
+		return nil, err
+	}
+
+	return warehouses, err
 }
 
 func (s *service) AddWarehouse(ctx context.Context, payload dto.PayloadAddWarehouse, userClaim dto.UserClaimJwt) error {

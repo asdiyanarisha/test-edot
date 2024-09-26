@@ -33,10 +33,9 @@ func NewHttp(g *gin.Engine, f *factory.Factory) {
 	shop.NewHandler(f).ShopRouter(shopsGroup)
 
 	// product section
-	productGroup := api.Group("product")
+	productGroup := api.Group("products")
 	product.NewHandler(f).ProductBearerShopRouter(productGroup)
 
 	// product section
-	warehouseGroup := api.Group("warehouse")
-	warehouse.NewHandler(f).WarehouseBearerShopRouter(warehouseGroup)
+	warehouse.NewHandler(f).WarehouseBearerShopRouter(api.Group("warehouses"))
 }
