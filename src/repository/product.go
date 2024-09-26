@@ -7,8 +7,9 @@ import (
 )
 
 type ProductRepositoryInterface interface {
-	Create(ctx context.Context, Product *models.Product) error
+	Create(tx *gorm.DB, Product *models.Product) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.Product, error)
+	Begin() *gorm.DB
 }
 
 type ProductRepository struct {
@@ -22,8 +23,12 @@ func NewProductRepository(db *gorm.DB) *ProductRepository {
 	}
 }
 
-func (r *ProductRepository) Create(ctx context.Context, Product *models.Product) error {
-	if err := r.Database.WithContext(ctx).Model(models.Product{}).Create(Product).Error; err != nil {
+func (r *ProductRepository) Begin() *gorm.DB {
+	return r.Database.Begin()
+}
+
+func (r *ProductRepository) Create(tx *gorm.DB, Product *models.Product) error {
+	if err := tx.Model(models.Product{}).Create(Product).Error; err != nil {
 		return err
 	}
 

@@ -19,18 +19,20 @@ type Service interface {
 }
 
 type service struct {
-	Log               *zap.Logger
-	UserRepository    repository.UserRepositoryInterface
-	ShopRepository    repository.ShopRepositoryInterface
-	ProductRepository repository.ProductRepositoryInterface
+	Log                  *zap.Logger
+	UserRepository       repository.UserRepositoryInterface
+	ShopRepository       repository.ShopRepositoryInterface
+	ProductRepository    repository.ProductRepositoryInterface
+	StockLevelRepository repository.StockLevelRepositoryInterface
 }
 
 func NewService(f *factory.Factory) Service {
 	return &service{
-		Log:               f.Log,
-		UserRepository:    f.UserRepository,
-		ShopRepository:    f.ShopRepository,
-		ProductRepository: f.ProductRepository,
+		Log:                  f.Log,
+		UserRepository:       f.UserRepository,
+		ShopRepository:       f.ShopRepository,
+		ProductRepository:    f.ProductRepository,
+		StockLevelRepository: f.StockLevelRepository,
 	}
 }
 
@@ -55,21 +57,61 @@ func (s *service) AddProduct(ctx context.Context, payload dto.PayloadAddProduct,
 		return constants.ProductAlreadyInserted
 	}
 
+	if err := s.CreateProduct(payload, payload.ShopId); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) CreateProduct(payload dto.PayloadAddProduct, shopId int) error {
+	tx := s.ProductRepository.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		s.Log.Error("error begin transaction", zap.Error(err))
+		return err
+	}
+
 	product := models.Product{
 		Name:      payload.Name,
 		Sku:       payload.Sku,
 		Price:     payload.Price,
-		ShopId:    shop.ID,
+		ShopId:    shopId,
 		CreatedAt: time.Now().In(util.LocationTime),
 		UpdatedAt: time.Now().In(util.LocationTime),
 	}
-
-	if err := s.ProductRepository.Create(ctx, &product); err != nil {
-
+	if err := s.ProductRepository.Create(tx, &product); err != nil {
+		tx.Rollback()
 		s.Log.Error("error insert product", zap.String("product", product.Name), zap.Error(err))
 		return err
 	}
 
+	stockLevel := models.StockLevel{
+		ProductId:     product.Id,
+		WarehouseId:   payload.WarehouseId,
+		Stock:         payload.Qty,
+		ReservedStock: 0,
+		CreatedAt:     time.Now().In(util.LocationTime),
+		UpdatedAt:     time.Now().In(util.LocationTime),
+	}
+
+	if err := s.StockLevelRepository.Create(tx, &stockLevel); err != nil {
+		tx.Rollback()
+		s.Log.Error("error insert stock level", zap.String("product", product.Name), zap.Error(err))
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		s.Log.Error("error commit transaction", zap.Error(err))
+		return err
+	}
+
 	s.Log.Info("success insert product", zap.String("product", product.Name))
+
 	return nil
 }
