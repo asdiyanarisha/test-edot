@@ -16,4 +16,5 @@ var (
 	BearerExpired            = errors.New("bearer expired")
 	ProductAlreadyInserted   = errors.New("product already inserted")
 	WarehouseAlreadyExisted  = errors.New("warehouse already existed")
+	WarehouseNotFound        = errors.New("warehouse not found")
 )

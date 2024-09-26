@@ -5,6 +5,7 @@ import (
 	"errors"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"sync"
 	"test-edot/constants"
 	"test-edot/src/dto"
 	"test-edot/src/factory"
@@ -24,6 +25,7 @@ type service struct {
 	ShopRepository       repository.ShopRepositoryInterface
 	ProductRepository    repository.ProductRepositoryInterface
 	StockLevelRepository repository.StockLevelRepositoryInterface
+	WarehouseRepository  repository.WarehouseRepositoryInterface
 }
 
 func NewService(f *factory.Factory) Service {
@@ -33,31 +35,111 @@ func NewService(f *factory.Factory) Service {
 		ShopRepository:       f.ShopRepository,
 		ProductRepository:    f.ProductRepository,
 		StockLevelRepository: f.StockLevelRepository,
+		WarehouseRepository:  f.WarehouseRepository,
 	}
 }
 
 func (s *service) AddProduct(ctx context.Context, payload dto.PayloadAddProduct, userClaim dto.UserClaimJwt) error {
-	shop, err := s.ShopRepository.FindOne(ctx, "id", "user_id = ? and id = ?", userClaim.UserId, payload.ShopId)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return constants.ShopNotFound
-		}
-
-		s.Log.Error("error get shop", zap.Error(err), zap.Any("payload", payload))
+	if err := s.ValidateAddProduct(ctx, payload, userClaim); err != nil {
 		return err
-	}
-
-	productData, err := s.ProductRepository.FindOne(ctx, "id", "sku = ? and shop_id = ?", payload.Sku, shop.ID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		s.Log.Error("error get product", zap.Error(err), zap.Any("payload", payload))
-		return err
-	}
-
-	if productData != (models.Product{}) {
-		return constants.ProductAlreadyInserted
 	}
 
 	if err := s.CreateProduct(payload, payload.ShopId); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *service) ValidateAddProduct(ctx context.Context, payload dto.PayloadAddProduct, userClaim dto.UserClaimJwt) error {
+	var (
+		wg sync.WaitGroup
+	)
+
+	errChan := make(chan error)
+	wgDone := make(chan struct{})
+
+	c, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-c.Done():
+			return
+		default:
+			res, err := s.ShopRepository.FindOne(ctx, "id", "user_id = ? and id = ?", userClaim.UserId, payload.ShopId)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				s.Log.Error("error get shop", zap.Error(err), zap.Any("payload", payload))
+				errChan <- err
+				return
+			}
+
+			if res == (models.Shop{}) {
+				errChan <- constants.ShopNotFound
+				return
+			}
+
+			return
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-c.Done():
+			return
+
+		default:
+			productData, err := s.ProductRepository.FindOne(ctx, "id", "sku = ? and shop_id = ?", payload.Sku, payload.ShopId)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				s.Log.Error("error get product", zap.Error(err), zap.Any("payload", payload))
+				errChan <- err
+				return
+			}
+
+			if productData != (models.Product{}) {
+				errChan <- constants.ProductAlreadyInserted
+				return
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-c.Done():
+			return
+		default:
+			warehouseData, err := s.WarehouseRepository.FindOne(ctx, "id", "user_id = ? and id = ?", userClaim.UserId, payload.WarehouseId)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				s.Log.Error("error get warehouse", zap.Error(err), zap.Any("payload", payload))
+				errChan <- err
+				return
+			}
+
+			if warehouseData == (models.Warehouse{}) {
+				errChan <- constants.WarehouseNotFound
+				return
+			}
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		close(wgDone)
+		close(errChan)
+	}()
+
+	select {
+	case <-wgDone:
+		break
+	case err := <-errChan:
 		return err
 	}
 
