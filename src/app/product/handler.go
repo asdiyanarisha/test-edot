@@ -18,23 +18,25 @@ func NewHandler(f *factory.Factory) *handler {
 }
 
 func (h *handler) ProductList(g *gin.Context) {
-	var payload dto.PayloadCreateShop
-	if err := g.ShouldBindJSON(&payload); err != nil {
+	var payload dto.ParameterQuery
+	if err := g.ShouldBind(&payload); err != nil {
 		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
 			Error: err.Error(),
 		})
 		return
 	}
 
-	//if err := h.service.CreateShop(g, userClaim, payload); err != nil {
-	//	g.JSON(http.StatusBadRequest, dto.ErrorResponse{
-	//		Error: err.Error(),
-	//	})
-	//	return
-	//}
+	res, err := h.service.ProductList(g, payload)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
 
 	g.JSON(http.StatusOK, dto.Response{
 		Message: "success create shop",
+		Data:    res,
 	})
 	return
 }

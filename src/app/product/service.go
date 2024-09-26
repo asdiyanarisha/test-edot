@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"sync"
@@ -17,6 +18,7 @@ import (
 
 type Service interface {
 	AddProduct(ctx context.Context, payload dto.PayloadAddProduct, userClaim dto.UserClaimJwt) error
+	ProductList(ctx context.Context, payload dto.ParameterQuery) (any, error)
 }
 
 type service struct {
@@ -37,6 +39,43 @@ func NewService(f *factory.Factory) Service {
 		StockLevelRepository: f.StockLevelRepository,
 		WarehouseRepository:  f.WarehouseRepository,
 	}
+}
+
+func (s *service) ProductList(ctx context.Context, payload dto.ParameterQuery) (any, error) {
+	var query string
+	limit := 20
+	if payload.Limit > 0 {
+		limit = payload.Limit
+	}
+
+	if payload.Search != "" {
+		query += fmt.Sprintf("name LIKE '%s'", "%"+payload.Search+"%")
+	}
+
+	selectField := "id,name,sku,price,shop_id"
+	products, err := s.ProductRepository.GetProductDetail(ctx, payload.Offset, limit, selectField, query)
+	if err != nil {
+		return nil, err
+	}
+
+	var resProducts []dto.ProductResponse
+	for _, product := range products {
+		var stock int
+		for _, level := range product.Stock {
+			stock += level.Stock
+		}
+
+		resProducts = append(resProducts, dto.ProductResponse{
+			Id:    product.Id,
+			Name:  product.Name,
+			Price: product.Price,
+			Sku:   product.Sku,
+			Shop:  product.Shop.Name,
+			Stock: stock,
+		})
+	}
+
+	return resProducts, nil
 }
 
 func (s *service) AddProduct(ctx context.Context, payload dto.PayloadAddProduct, userClaim dto.UserClaimJwt) error {

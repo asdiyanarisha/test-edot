@@ -10,6 +10,7 @@ type ProductRepositoryInterface interface {
 	Create(tx *gorm.DB, Product *models.Product) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.Product, error)
 	Begin() *gorm.DB
+	GetProductDetail(ctx context.Context, offset, limit int, selectField, query string, args ...any) ([]models.ProductDetail, error)
 }
 
 type ProductRepository struct {
@@ -48,4 +49,21 @@ func (r *ProductRepository) FindOne(ctx context.Context, selectField, query stri
 	}
 
 	return Product, nil
+}
+
+func (r *ProductRepository) GetProductDetail(ctx context.Context, offset, limit int, selectField, query string, args ...any) ([]models.ProductDetail, error) {
+	var products []models.ProductDetail
+	err := r.Database.WithContext(ctx).Model(models.ProductDetail{}).
+		Preload("Shop", func(db *gorm.DB) *gorm.DB {
+			return db.Order("id,name")
+		}).
+		Preload("Stock", func(db *gorm.DB) *gorm.DB {
+			return db.Order("id,stock")
+		}).
+		Offset(offset).Limit(limit).
+		Select(selectField).Where(query, args...).Debug().Find(&products).Error
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }
