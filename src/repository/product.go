@@ -55,10 +55,10 @@ func (r *ProductRepository) GetProductDetail(ctx context.Context, offset, limit 
 	var products []models.ProductDetail
 	err := r.Database.WithContext(ctx).Model(models.ProductDetail{}).
 		Preload("Shop", func(db *gorm.DB) *gorm.DB {
-			return db.Order("id,name")
+			return db.Select("id,name")
 		}).
 		Preload("Stock", func(db *gorm.DB) *gorm.DB {
-			return db.Order("id,stock")
+			return db.Select("id,product_id,stock")
 		}).
 		Offset(offset).Limit(limit).
 		Select(selectField).Where(query, args...).Debug().Find(&products).Error

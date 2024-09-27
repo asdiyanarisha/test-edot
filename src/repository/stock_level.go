@@ -3,12 +3,16 @@ package repository
 import (
 	"context"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"strings"
 	"test-edot/src/models"
 )
 
 type StockLevelRepositoryInterface interface {
 	Create(tx *gorm.DB, stockLevel *models.StockLevel) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.StockLevel, error)
+	FindOneTx(tx *gorm.DB, order, query string, args ...interface{}) (models.StockLevelProduct, error)
+	UpdateOneTx(tx *gorm.DB, updateStockLevel *models.StockLevel, selectFields, query string, args ...interface{}) error
 }
 
 type StockLevelRepository struct {
@@ -43,4 +47,34 @@ func (r *StockLevelRepository) FindOne(ctx context.Context, selectField, query s
 	}
 
 	return stockLevel, nil
+}
+
+func (r *StockLevelRepository) FindOneTx(tx *gorm.DB, order, query string, args ...interface{}) (models.StockLevelProduct, error) {
+	var transaction models.StockLevelProduct
+	db := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Model(models.StockLevelProduct{})
+	if order != "" {
+		db = db.Order(order)
+	}
+
+	if err := db.Preload("Product", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id,name,price")
+	}).Where(query, args...).Debug().Take(&transaction).Error; err != nil {
+		return models.StockLevelProduct{}, err
+	}
+
+	return transaction, nil
+}
+
+func (r *StockLevelRepository) UpdateOneTx(tx *gorm.DB, updateStockLevel *models.StockLevel, selectFields, query string, args ...interface{}) error {
+	dbConn := tx.Model(models.StockLevel{})
+
+	if selectFields != "*" {
+		dbConn = dbConn.Select(strings.Split(selectFields, ","))
+	}
+
+	if err := dbConn.Where(query, args...).Debug().Updates(updateStockLevel).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

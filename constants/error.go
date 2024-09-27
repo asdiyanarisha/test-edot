@@ -17,4 +17,5 @@ var (
 	ProductAlreadyInserted   = errors.New("product already inserted")
 	WarehouseAlreadyExisted  = errors.New("warehouse already existed")
 	WarehouseNotFound        = errors.New("warehouse not found")
+	DuplicateProduct         = errors.New("duplicate product")
 )
