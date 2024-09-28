@@ -19,6 +19,7 @@ import (
 type Service interface {
 	AddProduct(ctx context.Context, payload dto.PayloadAddProduct, userClaim dto.UserClaimJwt) error
 	ProductList(ctx context.Context, payload dto.ParameterQuery) (any, error)
+	TransferProductWarehouse(ctx context.Context, payload dto.TransferProductWarehouse, userClaim dto.UserClaimJwt, productId int) error
 }
 
 type service struct {
@@ -39,6 +40,37 @@ func NewService(f *factory.Factory) Service {
 		StockLevelRepository: f.StockLevelRepository,
 		WarehouseRepository:  f.WarehouseRepository,
 	}
+}
+
+func (s *service) TransferProductWarehouse(ctx context.Context, payload dto.TransferProductWarehouse, userClaim dto.UserClaimJwt, productId int) error {
+	initialData, err := s.SetupProcessTransferProduct(ctx, userClaim, payload, productId)
+	if err != nil {
+		return err
+	}
+
+	tx := s.ProductRepository.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		s.Log.Error("error begin transaction", zap.Error(err))
+		return err
+	}
+
+	if err := s.ProcessTransferProduct(tx, initialData); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		s.Log.Error("error commit transaction", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (s *service) ProductList(ctx context.Context, payload dto.ParameterQuery) (any, error) {
@@ -235,4 +267,129 @@ func (s *service) CreateProduct(payload dto.PayloadAddProduct, shopId int) error
 	s.Log.Info("success insert product", zap.String("product", product.Name))
 
 	return nil
+}
+
+func (s *service) SetupProcessTransferProduct(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.TransferProductWarehouse, productId int) (dto.InitialTransferProduct, error) {
+	var (
+		wg            sync.WaitGroup
+		product       models.Product
+		fromWarehouse models.Warehouse
+		toWarehouse   models.Warehouse
+	)
+
+	errChan := make(chan error)
+	wgDone := make(chan struct{})
+
+	c, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	wg.Add(3)
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-c.Done():
+			return
+		default:
+			res, err := s.ProductRepository.FindOne(c, "id,name", "id = ?", productId)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				errChan <- err
+				return
+			}
+
+			if res == (models.Product{}) {
+				errChan <- constants.ProductNotFound
+			}
+
+			product = res
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-c.Done():
+			return
+		default:
+			res, err := s.WarehouseRepository.FindOne(c, "id,name", "id = ? and user_id = ? and is_active = 1", payload.FromWarehouseId, userClaim.UserId)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				errChan <- err
+				return
+			}
+
+			if res == (models.Warehouse{}) {
+				errChan <- constants.FromWarehouseNotFound
+			}
+
+			fromWarehouse = res
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		select {
+		case <-c.Done():
+			return
+		default:
+			res, err := s.WarehouseRepository.FindOne(c, "id,name", "id = ? and user_id = ? and is_active = 1", payload.ToWarehouseId, userClaim.UserId)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				errChan <- err
+				return
+			}
+
+			if res == (models.Warehouse{}) {
+				errChan <- constants.ToWarehouseNotFound
+			}
+
+			toWarehouse = res
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		close(wgDone)
+		close(errChan)
+	}()
+
+	select {
+	case <-wgDone:
+		break
+	case err := <-errChan:
+		return dto.InitialTransferProduct{}, err
+	}
+
+	return dto.InitialTransferProduct{
+		Product:       product,
+		FromWarehouse: fromWarehouse,
+		ToWarehouse:   toWarehouse,
+	}, nil
+}
+
+func (s *service) ProcessTransferProduct(tx *gorm.DB, initialData dto.InitialTransferProduct) error {
+	q := "product_id = ? and warehouse_id = ?"
+	stockFrom, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", q, initialData.Product.Id, initialData.FromWarehouse.ID)
+	if err != nil {
+		s.Log.Error("error get stock", zap.String("product", initialData.Product.Name), zap.Error(err))
+		return err
+	}
+
+	stockDest, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", q, initialData.Product.Id, initialData.ToWarehouse.ID)
+	if err != nil {
+		s.Log.Error("error get stock", zap.String("product", initialData.Product.Name), zap.Error(err))
+		return err
+	}
+
+	if stockFrom.ReservedStock != 0 {
+
+	}
+
+	fmt.Println(stockFrom, stockDest)
+
+	s.Log.Info("success move product stock to another warehouse")
+
+	return nil
+
 }

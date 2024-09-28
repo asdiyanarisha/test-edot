@@ -95,6 +95,7 @@ func (s *service) ProcessOrder(tx *gorm.DB, payload dto.PayloadCreateOrder) ([]m
 		// update stock level
 		orderDetails = append(orderDetails, models.OrderDetail{
 			ProductId: item.ProductId,
+			StockId:   stock.ID,
 			Qty:       item.Qty,
 			Total:     totalPrice,
 			CreatedAt: time.Now().In(util.LocationTime),
@@ -117,7 +118,6 @@ func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []m
 	expiredAt := now.Add(time.Minute * 5)
 
 	dataOrder := models.Order{
-		Id:        0,
 		OrderNo:   "XWADWA1213451",
 		UserId:    userClaim.UserId,
 		IsPayment: false,
@@ -137,6 +137,7 @@ func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []m
 			ProductId: item.ProductId,
 			Qty:       item.Qty,
 			Total:     item.Total,
+			ExpiredAt: expiredAt,
 			CreatedAt: item.CreatedAt,
 			UpdatedAt: item.UpdatedAt,
 		}

@@ -12,6 +12,7 @@ type StockLevelRepositoryInterface interface {
 	Create(tx *gorm.DB, stockLevel *models.StockLevel) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.StockLevel, error)
 	FindOneTx(tx *gorm.DB, order, query string, args ...interface{}) (models.StockLevelProduct, error)
+	FindTx(tx *gorm.DB, order, query string, args ...interface{}) ([]models.StockLevelProduct, error)
 	UpdateOneTx(tx *gorm.DB, updateStockLevel *models.StockLevel, selectFields, query string, args ...interface{}) error
 	SumStockWarehouse(ctx context.Context, query string, args ...any) (models.StockWarehouse, error)
 }
@@ -64,6 +65,22 @@ func (r *StockLevelRepository) FindOneTx(tx *gorm.DB, order, query string, args 
 	}
 
 	return transaction, nil
+}
+
+func (r *StockLevelRepository) FindTx(tx *gorm.DB, order, query string, args ...interface{}) ([]models.StockLevelProduct, error) {
+	var stocks []models.StockLevelProduct
+	db := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Model(models.StockLevelProduct{})
+	if order != "" {
+		db = db.Order(order)
+	}
+
+	if err := db.Preload("Product", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id,name,price")
+	}).Where(query, args...).Find(&stocks).Error; err != nil {
+		return []models.StockLevelProduct{}, err
+	}
+
+	return stocks, nil
 }
 
 func (r *StockLevelRepository) UpdateOneTx(tx *gorm.DB, updateStockLevel *models.StockLevel, selectFields, query string, args ...interface{}) error {

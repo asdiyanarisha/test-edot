@@ -1,5 +1,7 @@
 package dto
 
+import "test-edot/src/models"
+
 type (
 	PayloadAddProduct struct {
 		Name        string  `json:"name"`
@@ -14,6 +16,17 @@ type (
 		Offset int    `form:"offset"`
 		Limit  int    `form:"limit"`
 		Search string `form:"search"`
+	}
+
+	TransferProductWarehouse struct {
+		FromWarehouseId int `json:"from_warehouse_id"`
+		ToWarehouseId   int `json:"to_warehouse_id"`
+	}
+
+	InitialTransferProduct struct {
+		Product       models.Product
+		FromWarehouse models.Warehouse
+		ToWarehouse   models.Warehouse
 	}
 
 	ProductResponse struct {
