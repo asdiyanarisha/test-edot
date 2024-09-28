@@ -9,4 +9,9 @@ type (
 	ParameterQueryWarehouse struct {
 		Status string `form:"status"`
 	}
+
+	ParameterChangeStatusWarehouse struct {
+		WarehouseId int  `json:"warehouse_id"`
+		IsActive    bool `json:"is_active"`
+	}
 )

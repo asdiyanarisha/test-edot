@@ -13,6 +13,7 @@ type StockLevelRepositoryInterface interface {
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.StockLevel, error)
 	FindOneTx(tx *gorm.DB, order, query string, args ...interface{}) (models.StockLevelProduct, error)
 	UpdateOneTx(tx *gorm.DB, updateStockLevel *models.StockLevel, selectFields, query string, args ...interface{}) error
+	SumStockWarehouse(ctx context.Context, query string, args ...any) (models.StockWarehouse, error)
 }
 
 type StockLevelRepository struct {
@@ -77,4 +78,16 @@ func (r *StockLevelRepository) UpdateOneTx(tx *gorm.DB, updateStockLevel *models
 	}
 
 	return nil
+}
+
+func (r *StockLevelRepository) SumStockWarehouse(ctx context.Context, query string, args ...any) (models.StockWarehouse, error) {
+	var res models.StockWarehouse
+
+	if err := r.Database.WithContext(ctx).Model(models.StockLevel{}).
+		Select("sum(stock) as stock_count, sum(reserved_stock) as reserved_stock_count").Where(query, args...).
+		Take(&res).Error; err != nil {
+		return models.StockWarehouse{}, err
+	}
+
+	return res, nil
 }

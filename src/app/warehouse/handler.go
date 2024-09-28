@@ -41,6 +41,30 @@ func (h *handler) AddWarehouse(g *gin.Context) {
 	return
 }
 
+func (h *handler) ChangeStatusWarehouse(g *gin.Context) {
+	userClaim := g.Value("userClaim").(dto.UserClaimJwt)
+
+	var payload dto.ParameterChangeStatusWarehouse
+	if err := g.ShouldBind(&payload); err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	if err := h.service.ChangeStatusWarehouse(g, userClaim, payload); err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusOK, dto.Response{
+		Message: "success change status warehouse",
+	})
+	return
+}
+
 func (h *handler) GetWarehouses(g *gin.Context) {
 	userClaim := g.Value("userClaim").(dto.UserClaimJwt)
 
@@ -60,7 +84,7 @@ func (h *handler) GetWarehouses(g *gin.Context) {
 		return
 	}
 
-	g.JSON(http.StatusCreated, dto.Response{
+	g.JSON(http.StatusOK, dto.Response{
 		Message: "success list warehouse",
 		Data:    res,
 	})

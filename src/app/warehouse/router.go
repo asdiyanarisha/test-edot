@@ -9,4 +9,5 @@ func (h *handler) WarehouseBearerShopRouter(g *gin.RouterGroup) {
 	g.Use(middleware.BearerShop())
 	g.POST("", h.AddWarehouse)
 	g.GET("", h.GetWarehouses)
+	g.PUT("status", h.ChangeStatusWarehouse)
 }

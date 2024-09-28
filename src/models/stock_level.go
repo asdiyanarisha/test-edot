@@ -23,6 +23,11 @@ type (
 		CreatedAt     time.Time `json:"created_at"`
 		UpdatedAt     time.Time `json:"updated_at"`
 	}
+
+	StockWarehouse struct {
+		StockCount         int64 `json:"stock_count"  gorm:"column:stock_count"`
+		ReservedStockCount int64 `json:"reserved_stock_count"  gorm:"column:reserved_stock_count"`
+	}
 )
 
 func (StockLevelProduct) TableName() string {

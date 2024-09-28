@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"gorm.io/gorm"
+	"strings"
 	"test-edot/src/models"
 )
 
@@ -10,6 +11,7 @@ type WarehouseRepositoryInterface interface {
 	Create(ctx context.Context, Warehouse *models.Warehouse) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.Warehouse, error)
 	Find(ctx context.Context, selectField, query string, args ...any) ([]models.Warehouse, error)
+	Update(ctx context.Context, updatedField models.Warehouse, selectFields, query string, args ...any) error
 }
 
 type WarehouseRepository struct {
@@ -59,4 +61,18 @@ func (r *WarehouseRepository) Find(ctx context.Context, selectField, query strin
 	}
 
 	return warehouses, nil
+}
+
+func (r *WarehouseRepository) Update(ctx context.Context, updatedField models.Warehouse, selectFields, query string, args ...any) error {
+	dbConn := r.Database.WithContext(ctx).Model(models.Warehouse{})
+
+	if selectFields != "*" {
+		dbConn = dbConn.Select(strings.Split(selectFields, ","))
+	}
+
+	if err := dbConn.Where(query, args...).Updates(&updatedField).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
