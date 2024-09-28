@@ -118,7 +118,7 @@ func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []m
 	expiredAt := now.Add(time.Minute * 5)
 
 	dataOrder := models.Order{
-		OrderNo:   "XWADWA1213451",
+		OrderNo:   util.CreateOrderNo(),
 		UserId:    userClaim.UserId,
 		IsPayment: false,
 		Total:     grandTotal,
@@ -135,6 +135,7 @@ func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []m
 		orderDetail := models.OrderDetail{
 			OrderId:   dataOrder.Id,
 			ProductId: item.ProductId,
+			StockId:   item.StockId,
 			Qty:       item.Qty,
 			Total:     item.Total,
 			ExpiredAt: expiredAt,
