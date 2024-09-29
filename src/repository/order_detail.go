@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"strings"
 	"test-edot/src/models"
 )
@@ -12,6 +13,7 @@ type OrderDetailRepositoryInterface interface {
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.OrderDetail, error)
 	Begin() *gorm.DB
 	UpdateOneTx(tx *gorm.DB, updateOrderDetail *models.OrderDetail, selectFields, query string, args ...interface{}) error
+	FindTx(tx *gorm.DB, selectField, query string, args ...any) ([]models.OrderDetail, error)
 }
 
 type OrderDetailRepository struct {
@@ -64,4 +66,19 @@ func (r *OrderDetailRepository) FindOne(ctx context.Context, selectField, query 
 	}
 
 	return OrderDetail, nil
+}
+
+func (r *OrderDetailRepository) FindTx(tx *gorm.DB, selectField, query string, args ...any) ([]models.OrderDetail, error) {
+	var orderDetails []models.OrderDetail
+	db := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Model(models.OrderDetail{})
+
+	if selectField != "*" {
+		db = db.Select(selectField)
+	}
+
+	if err := db.Where(query, args...).Take(&orderDetails).Error; err != nil {
+		return []models.OrderDetail{}, err
+	}
+
+	return orderDetails, nil
 }

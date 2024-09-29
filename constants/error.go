@@ -12,6 +12,7 @@ var (
 	UserNotFound             = errors.New("user not found")
 	ShopAlreadyInserted      = errors.New("shop already inserted")
 	ShopNotFound             = errors.New("shop not found")
+	OrderNotFound            = errors.New("order not found")
 	InvalidPassword          = errors.New("password invalid")
 	BearerExpired            = errors.New("bearer expired")
 	ProductAlreadyInserted   = errors.New("product already inserted")
@@ -23,4 +24,5 @@ var (
 	DuplicateProduct         = errors.New("duplicate product")
 	StatusNotSamePrevious    = errors.New("status not same previous status")
 	StockMustEmpty           = errors.New("for inactive warehouse stock must be empty")
+	StockProductEmpty        = errors.New("stock product is empty")
 )

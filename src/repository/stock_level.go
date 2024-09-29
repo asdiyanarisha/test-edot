@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm/clause"
 	"strings"
 	"test-edot/src/models"
+	"time"
 )
 
 type StockLevelRepositoryInterface interface {
@@ -94,6 +95,8 @@ func (r *StockLevelRepository) UpdateOneTx(tx *gorm.DB, updateStockLevel *models
 	if selectFields != "*" {
 		dbConn = dbConn.Select(strings.Split(selectFields, ","))
 	}
+
+	time.Sleep(5 * time.Minute)
 
 	if err := dbConn.Where(query, args...).Debug().Updates(updateStockLevel).Error; err != nil {
 		return err

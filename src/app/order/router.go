@@ -8,4 +8,5 @@ import (
 func (h *handler) OrderBearerRouter(g *gin.RouterGroup) {
 	g.Use(middleware.BearerUser())
 	g.POST("", h.CreateOrder)
+	g.PUT(":order_id/payment", h.PaymentOrder)
 }

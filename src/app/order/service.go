@@ -16,6 +16,7 @@ import (
 
 type Service interface {
 	CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.PayloadCreateOrder) error
+	PaymentOrder(ctx context.Context, userClaim dto.UserClaimJwt, orderId int) error
 }
 
 type service struct {
@@ -38,6 +39,45 @@ func NewService(f *factory.Factory) Service {
 		StockLevelRepository:   f.StockLevelRepository,
 		OrderDetailsRepository: f.OrderDetailRepository,
 	}
+}
+
+func (s *service) PaymentOrder(ctx context.Context, userClaim dto.UserClaimJwt, orderId int) error {
+	now := time.Now().In(util.LocationTime)
+	tx := s.OrderRepository.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	query := "id = ? and user_id = ? and is_payment = 0 and expired_at > ?"
+	order, err := s.OrderRepository.FindOneTx(tx, "id,is_payment,order_no", query, orderId, userClaim.UserId, now.Format("2006-01-02 15:04:05"))
+	if err != nil {
+		tx.Rollback()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return constants.OrderNotFound
+		}
+
+		s.Log.Error("error get order", zap.Error(err))
+		return err
+	}
+
+	if err := s.ProcessPaymentOrder(tx, order); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Error; err != nil {
+		s.Log.Error("error begin transaction", zap.Error(err))
+		return err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		s.Log.Error("error commit transaction", zap.Error(err))
+		return err
+	}
+
+	return nil
 }
 
 func (s *service) CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.PayloadCreateOrder) error {
@@ -86,9 +126,13 @@ func (s *service) ProcessOrder(tx *gorm.DB, payload dto.PayloadCreateOrder) ([]m
 		}
 
 		// get stock level
-		stock, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", "product_id = ?", item.ProductId)
+		stock, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", "product_id = ? and stock > 0", item.ProductId)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return []models.OrderDetail{}, 0, err
+		}
+
+		if stock == (models.StockLevelProduct{}) {
+			return []models.OrderDetail{}, 0, constants.StockProductEmpty
 		}
 
 		totalPrice := stock.Product.Price * float64(item.Qty)
@@ -146,6 +190,38 @@ func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []m
 		if err := s.OrderDetailsRepository.Create(tx, &orderDetail); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (s *service) ProcessPaymentOrder(tx *gorm.DB, order models.Order) error {
+	fields := "id,product_id,stock_id,qty"
+	orderDetails, err := s.OrderDetailsRepository.FindTx(tx, fields, "order_id = ? ", order.Id)
+	if err != nil {
+		s.Log.Error("error get order details", zap.Error(err))
+		return err
+	}
+
+	for _, detail := range orderDetails {
+		stock, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", "id = ?", detail.StockId)
+		if err != nil {
+			return err
+		}
+
+		updatedData := models.StockLevel{ReservedStock: stock.ReservedStock - detail.Qty, UpdatedAt: time.Now().In(util.LocationTime)}
+		if err := s.StockLevelRepository.UpdateOneTx(tx, &updatedData, "reserved_stock,updated_at", "id = ?", detail.StockId); err != nil {
+			s.Log.Error("error update stock", zap.Error(err))
+			return err
+		}
+
+		s.Log.Info("successfully deduct stock", zap.Int("stock", detail.StockId))
+	}
+
+	updateOrder := models.Order{IsPayment: true, UpdatedAt: time.Now().In(util.LocationTime)}
+	if err := s.OrderRepository.UpdateOneTx(tx, &updateOrder, "is_payment,updated_at", "id = ?", order.Id); err != nil {
+		s.Log.Error("error update order", zap.Error(err))
+		return err
 	}
 
 	return nil

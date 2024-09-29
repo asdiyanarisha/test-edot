@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"strings"
 	"test-edot/src/models"
 )
 
@@ -10,6 +12,8 @@ type OrderRepositoryInterface interface {
 	Create(tx *gorm.DB, Order *models.Order) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.Order, error)
 	Begin() *gorm.DB
+	FindOneTx(tx *gorm.DB, fields, query string, args ...interface{}) (models.Order, error)
+	UpdateOneTx(tx *gorm.DB, updateOrder *models.Order, selectFields, query string, args ...interface{}) error
 }
 
 type OrderRepository struct {
@@ -48,4 +52,33 @@ func (r *OrderRepository) FindOne(ctx context.Context, selectField, query string
 	}
 
 	return Order, nil
+}
+
+func (r *OrderRepository) FindOneTx(tx *gorm.DB, fields, query string, args ...interface{}) (models.Order, error) {
+	var order models.Order
+	db := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Model(models.Order{})
+
+	if fields != "*" {
+		db = db.Select(fields)
+	}
+
+	if err := db.Where(query, args...).Take(&order).Error; err != nil {
+		return models.Order{}, err
+	}
+
+	return order, nil
+}
+
+func (r *OrderRepository) UpdateOneTx(tx *gorm.DB, updateOrder *models.Order, selectFields, query string, args ...interface{}) error {
+	dbConn := tx.Model(models.Order{})
+
+	if selectFields != "*" {
+		dbConn = dbConn.Select(strings.Split(selectFields, ","))
+	}
+
+	if err := dbConn.Where(query, args...).Debug().Updates(updateOrder).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
