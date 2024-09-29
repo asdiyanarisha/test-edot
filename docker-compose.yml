@@ -5,7 +5,7 @@ services:
     image: mysql:9.0.1
     container_name: mysql-edot
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PWD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PWD}
       MYSQL_DATABASE: ${MYSQL_DB}
@@ -31,7 +31,7 @@ services:
     container_name: test-edot-api
     restart: on-failure
     ports:
-      - "8081:8081"
+      - "${APP_PORT}:${APP_PORT}"
     env_file:
       - .env
 

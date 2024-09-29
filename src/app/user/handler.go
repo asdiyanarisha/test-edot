@@ -37,6 +37,7 @@ func (h *handler) LoginUser(g *gin.Context) {
 		})
 		return
 	}
+
 	token, err := h.service.Login(g, payload)
 	if err != nil {
 		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
@@ -45,7 +46,7 @@ func (h *handler) LoginUser(g *gin.Context) {
 		return
 	}
 
-	g.JSON(http.StatusCreated, dto.Response{
+	g.JSON(http.StatusOK, dto.Response{
 		Message: "login successfully",
 		Data:    dto.ResponseToken{Token: token},
 	})
