@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  mysql:
     image: mysql:9.0.1
     container_name: mysql-edot
     environment:
@@ -13,8 +13,26 @@ services:
       - "3306:3306"  # Expose port MySQL
     volumes:
       - db_data:/var/lib/mysql  # Menyimpan data MySQL agar persisten
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 #    networks:
 #      - mysql_network
+
+  api:
+    build:
+      dockerfile: api.Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    container_name: test-edot-api
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
 
 volumes:
   db_data:
