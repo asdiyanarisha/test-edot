@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"gorm.io/gorm"
+	"strings"
 	"test-edot/src/models"
 )
 
@@ -10,6 +11,7 @@ type OrderDetailRepositoryInterface interface {
 	Create(tx *gorm.DB, OrderDetail *models.OrderDetail) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.OrderDetail, error)
 	Begin() *gorm.DB
+	UpdateOneTx(tx *gorm.DB, updateOrderDetail *models.OrderDetail, selectFields, query string, args ...interface{}) error
 }
 
 type OrderDetailRepository struct {
@@ -29,6 +31,20 @@ func (r *OrderDetailRepository) Begin() *gorm.DB {
 
 func (r *OrderDetailRepository) Create(tx *gorm.DB, OrderDetail *models.OrderDetail) error {
 	if err := tx.Model(models.OrderDetail{}).Create(OrderDetail).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *OrderDetailRepository) UpdateOneTx(tx *gorm.DB, updateOrderDetail *models.OrderDetail, selectFields, query string, args ...interface{}) error {
+	dbConn := tx.Model(models.OrderDetail{})
+
+	if selectFields != "*" {
+		dbConn = dbConn.Select(strings.Split(selectFields, ","))
+	}
+
+	if err := dbConn.Where(query, args...).Debug().Updates(updateOrderDetail).Error; err != nil {
 		return err
 	}
 

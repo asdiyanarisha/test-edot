@@ -3,6 +3,7 @@ package warehouse
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 	"test-edot/src/dto"
 	"test-edot/src/factory"
 )
@@ -39,6 +40,37 @@ func (h *handler) AddWarehouse(g *gin.Context) {
 		Message: "success create warehouse",
 	})
 	return
+}
+
+func (h *handler) TransferProductWarehouse(g *gin.Context) {
+	userClaim := g.Value("userClaim").(dto.UserClaimJwt)
+
+	fromId, err := strconv.Atoi(g.Param("from_id"))
+	if err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: "product_id is not valid",
+		})
+		return
+	}
+
+	toId, err := strconv.Atoi(g.Param("to_id"))
+	if err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: "product_id is not valid",
+		})
+		return
+	}
+
+	if err := h.service.TransferProductWarehouse(g, userClaim, fromId, toId); err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusOK, dto.Response{
+		Message: "success change status warehouse",
+	})
 }
 
 func (h *handler) ChangeStatusWarehouse(g *gin.Context) {

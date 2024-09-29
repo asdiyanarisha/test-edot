@@ -9,6 +9,7 @@ import (
 )
 
 type StockLevelRepositoryInterface interface {
+	Begin() *gorm.DB
 	Create(tx *gorm.DB, stockLevel *models.StockLevel) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.StockLevel, error)
 	FindOneTx(tx *gorm.DB, order, query string, args ...interface{}) (models.StockLevelProduct, error)
@@ -26,6 +27,10 @@ func NewStockLevelRepository(db *gorm.DB) *StockLevelRepository {
 	return &StockLevelRepository{
 		Database: db,
 	}
+}
+
+func (r *StockLevelRepository) Begin() *gorm.DB {
+	return r.Database.Begin()
 }
 
 func (r *StockLevelRepository) Create(tx *gorm.DB, stockLevel *models.StockLevel) error {
