@@ -191,6 +191,20 @@ func (s *e2eTestSuite) registerUsers() {
 			Email:    "usebiasa12@example.com",
 			Phone:    "8382093561",
 		},
+		{
+			FullName: "usersuper2",
+			Password: "usersuper1123",
+			Role:     constants.ROLE_USER,
+			Email:    "usersuper2@example.com",
+			Phone:    "8382093563",
+		},
+		{
+			FullName: "usersuper3",
+			Password: "usersuper1123",
+			Role:     constants.ROLE_USER,
+			Email:    "usersuper3@example.com",
+			Phone:    "8382093564",
+		},
 	}
 
 	for i, user := range s.users {

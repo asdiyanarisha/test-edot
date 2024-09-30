@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"gorm.io/gorm"
+	"strconv"
 	"test-edot/constants"
 	"test-edot/src/dto"
 	"test-edot/src/factory"
@@ -137,7 +138,7 @@ func (s *service) ReleaseStockOrder() {
 	}
 
 	for _, order := range orders {
-		detailOrders, err := s.OrderDetailsRepository.FindTx(tx, "id,stock_id,qty", "order_id = ? and expired_at < ?", order.Id, now.Format("2006-01-02 15:04:05"))
+		detailOrders, err := s.OrderDetailsRepository.FindTx(tx, "id,stock_id,product_id,qty", "order_id = ? and expired_at < ?", order.Id, now.Format("2006-01-02 15:04:05"))
 		if err != nil {
 			tx.Rollback()
 			s.Log.Error("error get order", zap.Error(err))
@@ -145,7 +146,7 @@ func (s *service) ReleaseStockOrder() {
 		}
 
 		for _, detailOrder := range detailOrders {
-			stock, err := s.StockLevelRepository.FindOneTx(tx, "update_at asc", "id = ?", detailOrder.StockId)
+			stock, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", "id = ? and product_id = ?", detailOrder.StockId, detailOrder.ProductId)
 			if err != nil {
 				tx.Rollback()
 				s.Log.Error("error get order", zap.Error(err))
@@ -184,46 +185,72 @@ func (s *service) ProcessOrder(tx *gorm.DB, payload dto.PayloadCreateOrder) ([]m
 	mapProductId := make(map[int]bool)
 
 	for _, item := range payload.Items {
+		qty := item.Qty
+
 		// filter product id duplicated
 		if _, ok := mapProductId[item.ProductId]; ok {
 			return nil, 0, constants.DuplicateProduct
 		}
 
 		// get stock level
-		stock, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", "product_id = ? and stock > 0", item.ProductId)
+		stocks, err := s.StockLevelRepository.FindTx(tx, "updated_at asc", "product_id = ? and stock > 0", item.ProductId)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return []models.OrderDetail{}, 0, err
 		}
 
-		if stock == (models.StockLevelProduct{}) {
+		if len(stocks) == 0 {
 			return []models.OrderDetail{}, 0, constants.StockProductEmpty
 		}
 
-		totalPrice := stock.Product.Price * float64(item.Qty)
-		// update stock level
-		orderDetails = append(orderDetails, models.OrderDetail{
-			ProductId: item.ProductId,
-			StockId:   stock.ID,
-			Qty:       item.Qty,
-			Total:     totalPrice,
-			CreatedAt: time.Now().In(util.LocationTime),
-			UpdatedAt: time.Now().In(util.LocationTime),
-		})
-		updatedData := models.StockLevel{Stock: stock.Stock - item.Qty, ReservedStock: stock.ReservedStock + item.Qty}
-		if err := s.StockLevelRepository.UpdateOneTx(tx, &updatedData, "stock,reserved_stock", "id = ?", stock.ID); err != nil {
-			return []models.OrderDetail{}, 0, err
+		for _, stock := range stocks {
+			if qty == 0 {
+				break
+			}
+
+			qtyStock := qty
+			if qty > stock.Stock {
+				qty = qty - stock.Stock
+				qtyStock = stock.Stock
+			} else {
+				qty = 0
+			}
+
+			totalPrice := stock.Product.Price * float64(qtyStock)
+			// update stock level
+			orderDetails = append(orderDetails, models.OrderDetail{
+				ProductId: item.ProductId,
+				StockId:   stock.ID,
+				Qty:       qtyStock,
+				Total:     totalPrice,
+				CreatedAt: time.Now().In(util.LocationTime),
+				UpdatedAt: time.Now().In(util.LocationTime),
+			})
+			updatedData := models.StockLevel{Stock: stock.Stock - qtyStock, ReservedStock: stock.ReservedStock + qtyStock}
+			if err := s.StockLevelRepository.UpdateOneTx(tx, &updatedData, "stock,reserved_stock", "id = ?", stock.ID); err != nil {
+				return []models.OrderDetail{}, 0, err
+			}
+
+			grandTotal += totalPrice
+		}
+
+		if qty > 0 {
+			return nil, 0, constants.NotEnoughStockProduct
 		}
 
 		mapProductId[item.ProductId] = true
-		grandTotal += totalPrice
 	}
 
 	return orderDetails, grandTotal, nil
 }
 
 func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []models.OrderDetail, grandTotal float64) error {
+	expireOrderMinutes, err := strconv.Atoi(util.GetEnv("ORDER_EXPIRE_MINUTE", ""))
+	if err != nil {
+		return err
+	}
+
 	now := time.Now().In(util.LocationTime)
-	expiredAt := now.Add(time.Minute * 5)
+	expiredAt := now.Add(time.Minute * time.Duration(expireOrderMinutes))
 
 	dataOrder := models.Order{
 		OrderNo:   util.CreateOrderNo(),
