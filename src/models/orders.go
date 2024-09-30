@@ -8,6 +8,7 @@ type (
 		OrderNo   string    `json:"order_no" gorm:"column:order_no"`
 		UserId    int       `json:"user_id" gorm:"column:user_id"`
 		IsPayment bool      `json:"is_payment" gorm:"column:is_payment"`
+		IsRelease bool      `json:"is_release" gorm:"column:is_release"`
 		Total     float64   `json:"total" gorm:"column:total"`
 		ExpiredAt time.Time `json:"expired_at" gorm:"column:expired_at"`
 		CreatedAt time.Time `json:"created_at" gorm:"column:created_at"`

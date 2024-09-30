@@ -17,6 +17,7 @@ import (
 type Service interface {
 	CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.PayloadCreateOrder) error
 	PaymentOrder(ctx context.Context, userClaim dto.UserClaimJwt, orderId int) error
+	ReleaseStockOrder()
 }
 
 type service struct {
@@ -110,6 +111,69 @@ func (s *service) CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, p
 	}
 
 	return nil
+}
+
+func (s *service) ReleaseStockOrder() {
+	ctx := context.Background()
+
+	s.Log.Info("running release stock order")
+
+	now := time.Now().In(util.LocationTime)
+	orders, err := s.OrderRepository.FindAll(ctx, "id,expired_at", "expired_at < ? and is_release = 0 and is_payment = 0", now.Format("2006-01-02 15:04:05"))
+	if err != nil {
+		s.Log.Error("error get order", zap.Error(err))
+		return
+	}
+	tx := s.OrderDetailsRepository.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Error; err != nil {
+		s.Log.Error("error begin transaction", zap.Error(err))
+		return
+	}
+
+	for _, order := range orders {
+		detailOrders, err := s.OrderDetailsRepository.FindTx(tx, "id,stock_id,qty", "order_id = ? and expired_at < ?", order.Id, now.Format("2006-01-02 15:04:05"))
+		if err != nil {
+			tx.Rollback()
+			s.Log.Error("error get order", zap.Error(err))
+			return
+		}
+
+		for _, detailOrder := range detailOrders {
+			stock, err := s.StockLevelRepository.FindOneTx(tx, "update_at asc", "id = ?", detailOrder.StockId)
+			if err != nil {
+				tx.Rollback()
+				s.Log.Error("error get order", zap.Error(err))
+				return
+			}
+
+			stockLevel := models.StockLevel{ReservedStock: stock.ReservedStock - detailOrder.Qty, Stock: stock.Stock + detailOrder.Qty}
+			if err := s.StockLevelRepository.UpdateOneTx(tx, &stockLevel, "reserved_stock,stock", "id = ?", stock.ID); err != nil {
+				tx.Rollback()
+				s.Log.Error("error update stock", zap.Error(err))
+				return
+			}
+		}
+
+		updatedOrder := models.Order{IsRelease: true, UpdatedAt: time.Now().In(util.LocationTime)}
+		if err := s.OrderRepository.UpdateOneTx(tx, &updatedOrder, "is_release,updated_at", "id = ?", order.Id); err != nil {
+			tx.Rollback()
+			s.Log.Error("error update order", zap.Error(err))
+			return
+		}
+
+		s.Log.Info("order stock has released", zap.Int("orderId", order.Id))
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		s.Log.Error("error commit transaction", zap.Error(err))
+		return
+	}
 }
 
 func (s *service) ProcessOrder(tx *gorm.DB, payload dto.PayloadCreateOrder) ([]models.OrderDetail, float64, error) {

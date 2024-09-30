@@ -1,0 +1,2 @@
+ALTER TABLE `orders`
+    ADD COLUMN `is_release` TINYINT NOT NULL DEFAULT 0 AFTER `total`;

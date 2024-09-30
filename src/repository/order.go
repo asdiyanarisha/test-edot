@@ -14,6 +14,7 @@ type OrderRepositoryInterface interface {
 	Begin() *gorm.DB
 	FindOneTx(tx *gorm.DB, fields, query string, args ...interface{}) (models.Order, error)
 	UpdateOneTx(tx *gorm.DB, updateOrder *models.Order, selectFields, query string, args ...interface{}) error
+	FindAll(ctx context.Context, selectField, query string, args ...any) ([]models.Order, error)
 }
 
 type OrderRepository struct {
@@ -52,6 +53,21 @@ func (r *OrderRepository) FindOne(ctx context.Context, selectField, query string
 	}
 
 	return Order, nil
+}
+
+func (r *OrderRepository) FindAll(ctx context.Context, selectField, query string, args ...any) ([]models.Order, error) {
+	var orders []models.Order
+	dbCon := r.Database.WithContext(ctx).Model(models.Order{})
+
+	if selectField != "*" {
+		dbCon = dbCon.Select(selectField)
+	}
+
+	if err := dbCon.Where(query, args...).Find(&orders).Error; err != nil {
+		return []models.Order{}, err
+	}
+
+	return orders, nil
 }
 
 func (r *OrderRepository) FindOneTx(tx *gorm.DB, fields, query string, args ...interface{}) (models.Order, error) {
