@@ -25,4 +25,5 @@ var (
 	StatusNotSamePrevious    = errors.New("status not same previous status")
 	StockMustEmpty           = errors.New("for inactive warehouse stock must be empty")
 	StockProductEmpty        = errors.New("stock product is empty")
+	NotEnoughStockToTransfer = errors.New("not enough stock to transfer")
 )

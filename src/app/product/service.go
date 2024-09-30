@@ -60,7 +60,7 @@ func (s *service) TransferProductWarehouse(ctx context.Context, payload dto.Tran
 		return err
 	}
 
-	if err := s.ProcessTransferProduct(tx, initialData); err != nil {
+	if err := s.ProcessTransferProduct(tx, initialData, payload); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -368,12 +368,16 @@ func (s *service) SetupProcessTransferProduct(ctx context.Context, userClaim dto
 	}, nil
 }
 
-func (s *service) ProcessTransferProduct(tx *gorm.DB, initialData dto.InitialTransferProduct) error {
+func (s *service) ProcessTransferProduct(tx *gorm.DB, initialData dto.InitialTransferProduct, payload dto.TransferProductWarehouse) error {
 	q := "product_id = ? and warehouse_id = ?"
 	stockFrom, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", q, initialData.Product.Id, initialData.FromWarehouse.ID)
 	if err != nil {
 		s.Log.Error("error get stock", zap.String("product", initialData.Product.Name), zap.Error(err))
 		return err
+	}
+
+	if stockFrom.Stock < payload.Qty {
+		return constants.NotEnoughStockToTransfer
 	}
 
 	stockDest, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", q, initialData.Product.Id, initialData.ToWarehouse.ID)
@@ -382,11 +386,39 @@ func (s *service) ProcessTransferProduct(tx *gorm.DB, initialData dto.InitialTra
 		return err
 	}
 
-	if stockFrom.ReservedStock != 0 {
+	if stockDest == (models.StockLevelProduct{}) {
+		stockLevel := models.StockLevel{
+			ProductId:   initialData.Product.Id,
+			WarehouseId: initialData.ToWarehouse.ID,
+			Stock:       payload.Qty,
+			CreatedAt:   time.Now().In(util.LocationTime),
+			UpdatedAt:   time.Now().In(util.LocationTime),
+		}
+		if err := s.StockLevelRepository.Create(tx, &stockLevel); err != nil {
+			s.Log.Error("error creating stock level", zap.Error(err))
+			return err
+		} else {
+			updatedStockLevel := models.StockLevel{
+				Stock:     stockDest.Stock + payload.Qty,
+				UpdatedAt: time.Now().In(util.LocationTime),
+			}
 
+			if err := s.StockLevelRepository.UpdateOneTx(tx, &updatedStockLevel, "stock,updated_at", "warehouse_id = ? and product_id = ?", stockDest.WarehouseId, initialData.Product.Id); err != nil {
+				return err
+			}
+		}
+
+		updatedStockLevel := models.StockLevel{
+			Stock:     stockFrom.Stock - payload.Qty,
+			UpdatedAt: time.Now().In(util.LocationTime),
+		}
+
+		if err := s.StockLevelRepository.UpdateOneTx(tx, &updatedStockLevel, "stock,updated_at", "warehouse_id = ? and product_id = ?", stockDest.WarehouseId, initialData.Product.Id); err != nil {
+			return err
+		}
+
+		s.Log.Info("success process stock level", zap.Any("stockLevelId", stockLevel.ID))
 	}
-
-	fmt.Println(stockFrom, stockDest)
 
 	s.Log.Info("success move product stock to another warehouse")
 

@@ -21,6 +21,7 @@ type (
 	TransferProductWarehouse struct {
 		FromWarehouseId int `json:"from_warehouse_id"`
 		ToWarehouseId   int `json:"to_warehouse_id"`
+		Qty             int `json:"qty"`
 	}
 
 	InitialTransferProduct struct {
