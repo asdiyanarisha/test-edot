@@ -62,7 +62,8 @@ func (h *handler) RegisterUser(g *gin.Context) {
 		return
 	}
 
-	if err := h.service.Register(g, payload); err != nil {
+	res, err := h.service.Register(g, payload)
+	if err != nil {
 		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error: err.Error(),
 		})
@@ -71,6 +72,7 @@ func (h *handler) RegisterUser(g *gin.Context) {
 
 	g.JSON(http.StatusCreated, dto.Response{
 		Message: "user success created",
+		Data:    res,
 	})
 	return
 }

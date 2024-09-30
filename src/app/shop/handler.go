@@ -27,7 +27,8 @@ func (h *handler) CreateShop(g *gin.Context) {
 		return
 	}
 
-	if err := h.service.CreateShop(g, userClaim, payload); err != nil {
+	res, err := h.service.CreateShop(g, userClaim, payload)
+	if err != nil {
 		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error: err.Error(),
 		})
@@ -36,6 +37,7 @@ func (h *handler) CreateShop(g *gin.Context) {
 
 	g.JSON(http.StatusCreated, dto.Response{
 		Message: "success create shop",
+		Data:    res,
 	})
 	return
 }

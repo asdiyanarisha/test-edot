@@ -17,7 +17,7 @@ import (
 )
 
 type Service interface {
-	Register(ctx context.Context, user dto.RegisterUser) error
+	Register(ctx context.Context, user dto.RegisterUser) (models.User, error)
 	Login(ctx context.Context, payload dto.LoginUser) (string, error)
 }
 
@@ -79,23 +79,23 @@ func (s service) Login(ctx context.Context, payload dto.LoginUser) (string, erro
 	return token, nil
 }
 
-func (s service) Register(ctx context.Context, user dto.RegisterUser) error {
+func (s service) Register(ctx context.Context, user dto.RegisterUser) (models.User, error) {
 	userTrack, err := s.UserRepository.FindOne(ctx, "email,phone", "email = ? or phone = ?", user.Email, user.Phone)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
+		return models.User{}, err
 	}
 
 	if userTrack != (models.User{}) {
-		return constants.UserAlreadyInserted
+		return models.User{}, constants.UserAlreadyInserted
 	}
 
 	if err := s.validateRegister(user); err != nil {
-		return err
+		return models.User{}, err
 	}
 
 	passwordHashed, err := util.HashPassword(user.Password)
 	if err != nil {
-		return err
+		return models.User{}, err
 	}
 
 	userData := models.User{
@@ -109,8 +109,8 @@ func (s service) Register(ctx context.Context, user dto.RegisterUser) error {
 	}
 	if err := s.UserRepository.Create(ctx, &userData); err != nil {
 		s.Log.Error("error creating user", zap.Error(err))
-		return err
+		return models.User{}, err
 	}
 
-	return nil
+	return userData, nil
 }

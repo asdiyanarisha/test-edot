@@ -11,6 +11,18 @@ import (
 	"test-edot/util"
 )
 
+type (
+	ResponseCreateShop struct {
+		Data dto.ResponseCreateShop
+	}
+	ResponseRegisterUser struct {
+		Data models.User
+	}
+	ResponseAddWarehouse struct {
+		Data dto.ResponseWarehouse
+	}
+)
+
 func (s *e2eTestSuite) registerAdminShop() {
 	s.adminShop = models.UserWithJwt{
 		FullName: "admin shop",
@@ -20,7 +32,8 @@ func (s *e2eTestSuite) registerAdminShop() {
 		Phone:    "8382093562",
 	}
 
-	if err := s.registerUser(s.adminShop); err != nil {
+	res, err := s.registerUser(s.adminShop)
+	if err != nil {
 		return
 	}
 	s.Log.Info("finish register user", zap.String("user", s.adminShop.FullName))
@@ -31,12 +44,13 @@ func (s *e2eTestSuite) registerAdminShop() {
 	}
 
 	s.adminShop.Jwt = token
+	s.adminShop.Id = res.Data.Id
 	s.Log.Info("finish login admin shop", zap.String("user", s.adminShop.FullName))
 }
 
 func (s *e2eTestSuite) createShop() {
 	payload := dto.PayloadCreateShop{
-		Name:     "Gudang Jakarta",
+		Name:     "Toko Makmur",
 		Location: "Jakarta, Indonesia",
 	}
 
@@ -73,7 +87,92 @@ func (s *e2eTestSuite) createShop() {
 		return
 	}
 
+	var response ResponseCreateShop
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+		s.Log.Error("Error decoding response", zap.Error(err))
+		return
+	}
+
+	s.shop = models.Shop{
+		ID:       response.Data.Id,
+		Name:     response.Data.Name,
+		Location: response.Data.Location,
+	}
+
 	s.Log.Info("success create shop", zap.String("status", res.Status))
+}
+
+func (s *e2eTestSuite) createWarehouses() {
+	warehouses := []models.Warehouse{
+		{Name: "Gudang Jakarta", Location: "Jakarta, Indonesia"},
+		{Name: "Gudang Bandung", Location: "Bandung, Indonesia"},
+	}
+
+	for _, warehouse := range warehouses {
+		res, err := s.createWarehouse(warehouse)
+		if err != nil {
+			s.Log.Error("Error creating warehouse", zap.Error(err))
+			return
+		}
+
+		s.warehouses = append(s.warehouses, models.Warehouse{
+			ID:       res.ID,
+			Name:     res.Name,
+			Location: res.Location,
+			UserId:   res.UserId,
+			IsActive: res.IsActive,
+		})
+	}
+
+	s.Log.Info("finish setup warehouse")
+}
+
+func (s *e2eTestSuite) createWarehouse(warehouse models.Warehouse) (dto.ResponseWarehouse, error) {
+	reqRegister := dto.PayloadAddWarehouse{
+		Name:     warehouse.Name,
+		Location: warehouse.Location,
+	}
+
+	payloadByte, _ := json.Marshal(reqRegister)
+	url := s.baseUrl + "/api/warehouses"
+	req, err := util.Req("POST", url, bytes.NewBuffer(payloadByte))
+	if err != nil {
+		s.Log.Error("Error creating request", zap.Error(err))
+		return dto.ResponseWarehouse{}, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "bearer "+s.adminShop.Jwt)
+
+	res, err := util.ReqDo(req)
+	if err != nil {
+		s.Log.Error("Error do req", zap.Error(err))
+		return dto.ResponseWarehouse{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 201 {
+		var errRes dto.ErrorResponse
+
+		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+			return dto.ResponseWarehouse{}, err
+		}
+
+		if errRes.Error == constants.WarehouseAlreadyExisted.Error() {
+			return dto.ResponseWarehouse{}, nil
+		}
+
+		s.Log.Error("error add warehouse", zap.String("status", res.Status), zap.Any("res", util.ResponseBodyToString(res)))
+		return dto.ResponseWarehouse{}, errors.New("error add warehouse")
+	}
+
+	var response ResponseAddWarehouse
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+		s.Log.Error("Error decoding response", zap.Error(err))
+		return dto.ResponseWarehouse{}, err
+	}
+
+	return response.Data, nil
 }
 
 func (s *e2eTestSuite) registerUsers() {
@@ -95,7 +194,8 @@ func (s *e2eTestSuite) registerUsers() {
 	}
 
 	for i, user := range s.users {
-		if err := s.registerUser(user); err != nil {
+		res, err := s.registerUser(user)
+		if err != nil {
 			return
 		}
 		s.Log.Info("finish register user", zap.String("user", user.FullName))
@@ -106,11 +206,13 @@ func (s *e2eTestSuite) registerUsers() {
 		}
 
 		s.users[i].Jwt = token
+		s.users[i].Id = res.Data.Id
+
 		s.Log.Info("finish login user", zap.String("user", user.FullName))
 	}
 }
 
-func (s *e2eTestSuite) registerUser(user models.UserWithJwt) error {
+func (s *e2eTestSuite) registerUser(user models.UserWithJwt) (ResponseRegisterUser, error) {
 	reqRegister := dto.RegisterUser{
 		FullName: user.FullName,
 		Email:    user.Email,
@@ -124,31 +226,37 @@ func (s *e2eTestSuite) registerUser(user models.UserWithJwt) error {
 	req, err := util.Req("POST", url, bytes.NewBuffer(payloadByte))
 	if err != nil {
 		s.Log.Error("Error creating request", zap.Error(err))
-		return err
+		return ResponseRegisterUser{}, err
 	}
 
 	res, err := util.ReqDo(req)
 	if err != nil {
 		s.Log.Error("Error do req", zap.Error(err))
-		return err
+		return ResponseRegisterUser{}, err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 201 {
 		var errRes dto.ErrorResponse
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
-			return err
+			return ResponseRegisterUser{}, err
 		}
 
 		if errRes.Error == constants.UserAlreadyInserted.Error() {
-			return nil
+			return ResponseRegisterUser{}, nil
 		}
 
 		s.Log.Error("error registering user", zap.String("status", res.Status), zap.Any("res", util.ResponseBodyToString(res)))
-		return errors.New("error registering user")
+		return ResponseRegisterUser{}, errors.New("error registering user")
 	}
 
-	return nil
+	var response ResponseRegisterUser
+	if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+		s.Log.Error("Error decoding response", zap.Error(err))
+		return ResponseRegisterUser{}, err
+	}
+
+	return response, nil
 }
 
 func (s *e2eTestSuite) loginUser(user models.UserWithJwt) (string, error) {

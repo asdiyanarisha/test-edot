@@ -15,6 +15,7 @@ type (
 	}
 
 	UserWithJwt struct {
+		Id       int    `json:"id"`
 		FullName string `json:"full_name" gorm:"column:full_name"`
 		Password string `json:"password" gorm:"column:password"`
 		Role     string `json:"role" gorm:"column:role"`

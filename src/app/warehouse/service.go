@@ -17,7 +17,7 @@ import (
 )
 
 type Service interface {
-	AddWarehouse(ctx context.Context, payload dto.PayloadAddWarehouse, userClaim dto.UserClaimJwt) error
+	AddWarehouse(ctx context.Context, payload dto.PayloadAddWarehouse, userClaim dto.UserClaimJwt) (dto.ResponseWarehouse, error)
 	GetWarehouses(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.ParameterQueryWarehouse) (any, error)
 	ChangeStatusWarehouse(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.ParameterChangeStatusWarehouse) error
 	TransferProductWarehouse(ctx context.Context, userClaim dto.UserClaimJwt, fromId, toId int) error
@@ -188,15 +188,15 @@ func (s *service) TransferProductWarehouse(ctx context.Context, userClaim dto.Us
 	return nil
 }
 
-func (s *service) AddWarehouse(ctx context.Context, payload dto.PayloadAddWarehouse, userClaim dto.UserClaimJwt) error {
+func (s *service) AddWarehouse(ctx context.Context, payload dto.PayloadAddWarehouse, userClaim dto.UserClaimJwt) (dto.ResponseWarehouse, error) {
 	warehouseDt, err := s.WarehouseRepository.FindOne(ctx, "id,name", "name = ? and user_id = ?", payload.Name, userClaim.UserId)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		s.Log.Error("error finding warehouse", zap.Error(err))
-		return err
+		return dto.ResponseWarehouse{}, err
 	}
 
 	if warehouseDt != (models.Warehouse{}) {
-		return constants.WarehouseAlreadyExisted
+		return dto.ResponseWarehouse{}, constants.WarehouseAlreadyExisted
 	}
 
 	warehouse := models.Warehouse{
@@ -210,12 +210,18 @@ func (s *service) AddWarehouse(ctx context.Context, payload dto.PayloadAddWareho
 
 	if err := s.WarehouseRepository.Create(ctx, &warehouse); err != nil {
 		s.Log.Error("error creating warehouse", zap.Error(err))
-		return err
+		return dto.ResponseWarehouse{}, err
 	}
 
 	s.Log.Info("success create warehouse", zap.Any("warehouse", warehouse))
 
-	return nil
+	return dto.ResponseWarehouse{
+		ID:       warehouse.ID,
+		Name:     warehouse.Name,
+		Location: warehouse.Location,
+		UserId:   warehouse.UserId,
+		IsActive: warehouse.IsActive,
+	}, nil
 }
 
 func (s *service) InitialTransferProductWarehouse(ctx context.Context, userClaim dto.UserClaimJwt, fromId, toId int) (models.Warehouse, models.Warehouse, error) {

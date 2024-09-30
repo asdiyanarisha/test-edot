@@ -15,7 +15,7 @@ import (
 )
 
 type Service interface {
-	CreateShop(ctx context.Context, user dto.UserClaimJwt, payload dto.PayloadCreateShop) error
+	CreateShop(ctx context.Context, user dto.UserClaimJwt, payload dto.PayloadCreateShop) (dto.ResponseCreateShop, error)
 }
 
 type service struct {
@@ -32,14 +32,14 @@ func NewService(f *factory.Factory) Service {
 	}
 }
 
-func (s *service) CreateShop(ctx context.Context, user dto.UserClaimJwt, payload dto.PayloadCreateShop) error {
+func (s *service) CreateShop(ctx context.Context, user dto.UserClaimJwt, payload dto.PayloadCreateShop) (dto.ResponseCreateShop, error) {
 	shop, err := s.ShopRepository.FindOne(ctx, "name", "name = ? and user_id = ?", payload.Name, user.UserId)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
+		return dto.ResponseCreateShop{}, err
 	}
 
 	if shop != (models.Shop{}) {
-		return constants.ShopAlreadyInserted
+		return dto.ResponseCreateShop{}, constants.ShopAlreadyInserted
 	}
 
 	shopData := models.Shop{
@@ -51,10 +51,14 @@ func (s *service) CreateShop(ctx context.Context, user dto.UserClaimJwt, payload
 	}
 
 	if err := s.ShopRepository.Create(ctx, &shopData); err != nil {
-		return err
+		return dto.ResponseCreateShop{}, err
 	}
 
 	s.Log.Info("shop created", zap.String("name", shopData.Name), zap.String("location", shopData.Location))
 
-	return nil
+	return dto.ResponseCreateShop{
+		Id:       shopData.ID,
+		Name:     shopData.Name,
+		Location: shopData.Name,
+	}, nil
 }

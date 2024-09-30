@@ -11,10 +11,12 @@ import (
 
 type e2eTestSuite struct {
 	suite.Suite
-	users     []models.UserWithJwt
-	adminShop models.UserWithJwt
-	baseUrl   string
-	Log       *zap.Logger
+	users      []models.UserWithJwt
+	adminShop  models.UserWithJwt
+	baseUrl    string
+	Log        *zap.Logger
+	warehouses []models.Warehouse
+	shop       models.Shop
 }
 
 func TestE2ETestSuite(t *testing.T) {
@@ -31,6 +33,8 @@ func (s *e2eTestSuite) SetupTest() {
 	s.registerAdminShop()
 
 	s.createShop()
+
+	s.createWarehouses()
 }
 
 func (s *e2eTestSuite) Test_EndToEnd_CreateArticle() {

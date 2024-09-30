@@ -29,7 +29,8 @@ func (h *handler) AddWarehouse(g *gin.Context) {
 		return
 	}
 
-	if err := h.service.AddWarehouse(g, payload, userClaim); err != nil {
+	res, err := h.service.AddWarehouse(g, payload, userClaim)
+	if err != nil {
 		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error: err.Error(),
 		})
@@ -38,6 +39,7 @@ func (h *handler) AddWarehouse(g *gin.Context) {
 
 	g.JSON(http.StatusCreated, dto.Response{
 		Message: "success create warehouse",
+		Data:    res,
 	})
 	return
 }
