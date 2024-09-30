@@ -16,7 +16,7 @@ import (
 )
 
 type Service interface {
-	CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.PayloadCreateOrder) error
+	CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.PayloadCreateOrder) (models.Order, error)
 	PaymentOrder(ctx context.Context, userClaim dto.UserClaimJwt, orderId int) error
 	ReleaseStockOrder()
 }
@@ -82,7 +82,7 @@ func (s *service) PaymentOrder(ctx context.Context, userClaim dto.UserClaimJwt, 
 	return nil
 }
 
-func (s *service) CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.PayloadCreateOrder) error {
+func (s *service) CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, payload dto.PayloadCreateOrder) (models.Order, error) {
 	tx := s.ProductRepository.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -92,26 +92,27 @@ func (s *service) CreateOrder(ctx context.Context, userClaim dto.UserClaimJwt, p
 
 	if err := tx.Error; err != nil {
 		s.Log.Error("error begin transaction", zap.Error(err))
-		return err
+		return models.Order{}, err
 	}
 
 	orders, grandTotal, err := s.ProcessOrder(tx, payload)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return models.Order{}, err
 	}
 
-	if err := s.InsertOrder(tx, userClaim, orders, grandTotal); err != nil {
+	order, err := s.InsertOrder(tx, userClaim, orders, grandTotal)
+	if err != nil {
 		tx.Rollback()
-		return err
+		return models.Order{}, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
 		s.Log.Error("error commit transaction", zap.Error(err))
-		return err
+		return models.Order{}, err
 	}
 
-	return nil
+	return order, nil
 }
 
 func (s *service) ReleaseStockOrder() {
@@ -243,10 +244,10 @@ func (s *service) ProcessOrder(tx *gorm.DB, payload dto.PayloadCreateOrder) ([]m
 	return orderDetails, grandTotal, nil
 }
 
-func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []models.OrderDetail, grandTotal float64) error {
+func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []models.OrderDetail, grandTotal float64) (models.Order, error) {
 	expireOrderMinutes, err := strconv.Atoi(util.GetEnv("ORDER_EXPIRE_MINUTE", ""))
 	if err != nil {
-		return err
+		return models.Order{}, err
 	}
 
 	now := time.Now().In(util.LocationTime)
@@ -263,7 +264,7 @@ func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []m
 	}
 
 	if err := s.OrderRepository.Create(tx, &dataOrder); err != nil {
-		return err
+		return models.Order{}, err
 	}
 
 	for _, item := range items {
@@ -279,11 +280,11 @@ func (s *service) InsertOrder(tx *gorm.DB, userClaim dto.UserClaimJwt, items []m
 		}
 
 		if err := s.OrderDetailsRepository.Create(tx, &orderDetail); err != nil {
-			return err
+			return models.Order{}, err
 		}
 	}
 
-	return nil
+	return dataOrder, nil
 }
 
 func (s *service) ProcessPaymentOrder(tx *gorm.DB, order models.Order) error {

@@ -1,10 +1,11 @@
-Test Backend Asset Findr
+Test Senior Backend Engineer E-dot
 -------------------------
 
 Requirements:
 - Golang 1.19
-- PostgreSQL
+- MySQL
 - Migrate
+- Docker
 
 ### How To Run
 
@@ -48,3 +49,5 @@ $ migrate -path database/migration/ -database "mysql://root:rahasia123@tcp(local
 ```shell
 $ migrate -path database/migration/ -database "mysql://root:rahasia123@tcp(localhost:3306)/komcard_dev?multiStatements=true" -verbose down
 ```
+
+

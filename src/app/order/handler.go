@@ -50,8 +50,8 @@ func (h *handler) CreateOrder(g *gin.Context) {
 		})
 		return
 	}
-
-	if err := h.service.CreateOrder(g, userClaim, payload); err != nil {
+	res, err := h.service.CreateOrder(g, userClaim, payload)
+	if err != nil {
 		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error: err.Error(),
 		})
@@ -60,6 +60,7 @@ func (h *handler) CreateOrder(g *gin.Context) {
 
 	g.JSON(http.StatusCreated, dto.Response{
 		Message: "create order success",
+		Data:    res,
 	})
 	return
 }
