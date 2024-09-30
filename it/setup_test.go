@@ -294,3 +294,51 @@ func (s *e2eTestSuite) loginUser(user models.UserWithJwt) (string, error) {
 
 	return convert["token"].(string), nil
 }
+
+func (s *e2eTestSuite) addProduct() {
+	productData := dto.PayloadAddProduct{
+		Name:        "Baju Menarik",
+		Price:       123400,
+		Sku:         "BM001",
+		ShopId:      s.shop.ID,
+		WarehouseId: s.warehouses[0].ID,
+		Qty:         40,
+	}
+
+	payloadByte, _ := json.Marshal(productData)
+	url := s.baseUrl + "/api/products"
+	req, err := util.Req("POST", url, bytes.NewBuffer(payloadByte))
+	if err != nil {
+		s.Log.Error("Error creating request", zap.Error(err))
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "bearer "+s.adminShop.Jwt)
+
+	res, err := util.ReqDo(req)
+	if err != nil {
+		s.Log.Error("Error do req", zap.Error(err))
+		return
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 201 {
+		var errRes dto.ErrorResponse
+		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+			s.Log.Error("erorr get decode", zap.Error(err))
+			return
+		}
+
+		if errRes.Error == constants.ProductAlreadyInserted.Error() {
+			return
+		}
+
+		s.Log.Error("error add product", zap.String("status", res.Status), zap.Any("res", util.ResponseBodyToString(res)))
+		return
+	}
+
+	s.Log.Info("finish add product", zap.String("productName", productData.Name))
+
+	return
+}

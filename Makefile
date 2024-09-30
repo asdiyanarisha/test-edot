@@ -15,3 +15,9 @@ test-up:
 test-down:
 	migrate -path database/migration/ -database "mysql://$(MYSQL_USER):$(MYSQL_PWD)@tcp(localhost:3306)/$(MYSQL_DB)?multiStatements=true" -verbose down -all
 	docker compose down --volumes
+
+migrate-up:
+	migrate -path database/migration/ -database "mysql://$(MYSQL_USER):$(MYSQL_PWD)@tcp(localhost:3306)/$(MYSQL_DB)?multiStatements=true" -verbose up
+
+migrate-down:
+	migrate -path database/migration/ -database "mysql://$(MYSQL_USER):$(MYSQL_PWD)@tcp(localhost:3306)/$(MYSQL_DB)?multiStatements=true" -verbose down -all
