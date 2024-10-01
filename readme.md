@@ -6,6 +6,11 @@ Requirements:
 - MySQL
 - Migrate
 - Docker
+- Makefile
+
+### Services in this app:
+- rest api
+- scheduler worker (for release stock)
 
 ### How To Run
 
@@ -15,9 +20,20 @@ go get
 go run main.go
 ```
 
-#### run test
+#### run unittest
 ```shell
 go test ./... -v
+```
+
+### Run Integration Test
+first set config env `.env` to set configuration for testing, and next run initial dependency integration db such as database:
+```shell
+make initial-setup
+```
+
+this command for run integration test
+```shell
+make integration-test
 ```
 
 
@@ -49,5 +65,3 @@ $ migrate -path database/migration/ -database "mysql://root:rahasia123@tcp(local
 ```shell
 $ migrate -path database/migration/ -database "mysql://root:rahasia123@tcp(localhost:3306)/komcard_dev?multiStatements=true" -verbose down
 ```
-
-
