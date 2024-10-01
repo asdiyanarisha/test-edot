@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
+	"test-edot/metrics"
 	"test-edot/src/app/order"
 	"test-edot/src/app/product"
 	"test-edot/src/app/shop"
@@ -14,6 +15,8 @@ import (
 func NewHttp(g *gin.Engine, f *factory.Factory) {
 	g.Use(middleware.CORSMiddleware())
 	g.Use(gin.Logger(), gin.Recovery())
+
+	g.GET("/test-edot-metrics", metrics.PrometheusHandler())
 
 	// Here we define a router group
 	api := g.Group("/api")

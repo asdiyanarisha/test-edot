@@ -5,11 +5,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"test-edot/database"
+	"test-edot/metrics"
 	"test-edot/src/factory"
 	"test-edot/src/http"
 	"test-edot/src/scheduler"
 	"test-edot/util"
 )
+
+func init() {
+	metrics.RegisterPrometheus()
+}
 
 func main() {
 	var (

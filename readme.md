@@ -36,6 +36,9 @@ this command for run integration test
 make integration-test
 ```
 
+### Run Prometheus metrics
+req api via endpoint `localhost:8081/test-edot-metrics` to looking prometheus monitoring activity
+
 
 ### How Install golang migrate
 To install the migrate CLI tool using curl on Linux, you can follow these steps:
