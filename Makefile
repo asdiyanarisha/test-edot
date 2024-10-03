@@ -23,6 +23,9 @@ migrate-down:
 	migrate -path database/migration/ -database "mysql://$(MYSQL_USER):$(MYSQL_PWD)@tcp(localhost:3306)/$(MYSQL_DB)?multiStatements=true" -verbose down -all
 
 integration-test:
+	go test -tags=integration ./it -v .
+
+integration-test-all:
 	migrate -path database/migration/ -database "mysql://$(MYSQL_USER):$(MYSQL_PWD)@tcp(localhost:3306)/$(MYSQL_DB)?multiStatements=true" -verbose up
 	go test -tags=integration ./it -v .
 	migrate -path database/migration/ -database "mysql://$(MYSQL_USER):$(MYSQL_PWD)@tcp(localhost:3306)/$(MYSQL_DB)?multiStatements=true" -verbose down -all

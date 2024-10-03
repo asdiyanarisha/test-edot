@@ -296,7 +296,7 @@ func (s *service) ProcessPaymentOrder(tx *gorm.DB, order models.Order) error {
 	}
 
 	for _, detail := range orderDetails {
-		stock, err := s.StockLevelRepository.FindOneTx(tx, "updated_at asc", "id = ?", detail.StockId)
+		stock, err := s.StockLevelRepository.FindOneTx(tx, "id asc", "id = ?", detail.StockId)
 		if err != nil {
 			return err
 		}
@@ -307,7 +307,7 @@ func (s *service) ProcessPaymentOrder(tx *gorm.DB, order models.Order) error {
 			return err
 		}
 
-		s.Log.Info("successfully deduct stock", zap.Int("stock", detail.StockId))
+		s.Log.Info("successfully deduct stock", zap.Int("stockId", detail.StockId))
 	}
 
 	updateOrder := models.Order{IsPayment: true, UpdatedAt: time.Now().In(util.LocationTime)}

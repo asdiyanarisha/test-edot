@@ -76,7 +76,7 @@ func (r *OrderDetailRepository) FindTx(tx *gorm.DB, selectField, query string, a
 		db = db.Select(selectField)
 	}
 
-	if err := db.Where(query, args...).Take(&orderDetails).Error; err != nil {
+	if err := db.Where(query, args...).Find(&orderDetails).Error; err != nil {
 		return []models.OrderDetail{}, err
 	}
 
