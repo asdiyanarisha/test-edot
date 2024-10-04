@@ -13,6 +13,10 @@ type (
 	ResponseListProduct struct {
 		Data []dto.ProductResponse
 	}
+
+	ResponseDetailProduct struct {
+		Data dto.ProductDetailResponse
+	}
 )
 
 func (s *e2eTestSuite) getListProduct() []dto.ProductResponse {
@@ -45,6 +49,44 @@ func (s *e2eTestSuite) getListProduct() []dto.ProductResponse {
 	if err := json.NewDecoder(res.Body).Decode(&products); err != nil {
 		s.Log.Error("erorr get decode", zap.Error(err))
 		return []dto.ProductResponse{}
+	}
+
+	return products.Data
+}
+
+func (s *e2eTestSuite) getProductDetail(productId int) dto.ProductDetailResponse {
+	url := s.baseUrl + "/api/products/" + strconv.Itoa(productId) + "/detail"
+	req, err := util.Req("GET", url, nil)
+	if err != nil {
+		s.Log.Error("Error creating request", zap.Error(err))
+		return dto.ProductDetailResponse{}
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "bearer "+s.adminShop.Jwt)
+
+	res, err := util.ReqDo(req)
+	if err != nil {
+		s.Log.Error("Error do req", zap.Error(err))
+		return dto.ProductDetailResponse{}
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		var errRes dto.ErrorResponse
+		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
+			s.Log.Error("erorr get decode", zap.Error(err))
+			return dto.ProductDetailResponse{}
+		}
+
+		s.Log.Error("error get product", zap.String("status", res.Status), zap.Any("res", util.ResponseBodyToString(res)))
+		return dto.ProductDetailResponse{}
+	}
+
+	var products ResponseDetailProduct
+	if err := json.NewDecoder(res.Body).Decode(&products); err != nil {
+		s.Log.Error("erorr get decode", zap.Error(err))
+		return dto.ProductDetailResponse{}
 	}
 
 	return products.Data

@@ -20,6 +20,7 @@ type Service interface {
 	AddProduct(ctx context.Context, payload dto.PayloadAddProduct, userClaim dto.UserClaimJwt) error
 	ProductList(ctx context.Context, payload dto.ParameterQuery) (any, error)
 	TransferProductWarehouse(ctx context.Context, payload dto.TransferProductWarehouse, userClaim dto.UserClaimJwt, productId int) error
+	GetProductDetail(ctx context.Context, userClaim dto.UserClaimJwt, productId int) (any, error)
 }
 
 type service struct {
@@ -73,6 +74,39 @@ func (s *service) TransferProductWarehouse(ctx context.Context, payload dto.Tran
 	return nil
 }
 
+func (s *service) GetProductDetail(ctx context.Context, userClaim dto.UserClaimJwt, productId int) (any, error) {
+	var (
+		stock         int
+		reservedStock int
+	)
+
+	if userClaim.Role != constants.ROLE_ADMIN_SHOP {
+		return nil, constants.RoleUserInvalid
+	}
+
+	selectField := "id,name,sku,price,shop_id"
+	product, err := s.ProductRepository.GetProductDetail(ctx, selectField, "id = ?", productId)
+	if err != nil {
+		return nil, err
+	}
+	for _, level := range product.Stock {
+		stock += level.Stock
+		reservedStock += level.ReservedStock
+	}
+
+	productRes := dto.ProductDetailResponse{
+		Id:            product.Id,
+		Name:          product.Name,
+		Price:         product.Price,
+		Sku:           product.Sku,
+		Shop:          product.Shop.Name,
+		Stock:         stock,
+		ReservedStock: reservedStock,
+	}
+
+	return productRes, nil
+}
+
 func (s *service) ProductList(ctx context.Context, payload dto.ParameterQuery) (any, error) {
 	var query string
 	limit := 20
@@ -85,7 +119,7 @@ func (s *service) ProductList(ctx context.Context, payload dto.ParameterQuery) (
 	}
 
 	selectField := "id,name,sku,price,shop_id"
-	products, err := s.ProductRepository.GetProductDetail(ctx, payload.Offset, limit, selectField, query)
+	products, err := s.ProductRepository.GetProductDetails(ctx, payload.Offset, limit, selectField, query)
 	if err != nil {
 		return nil, err
 	}

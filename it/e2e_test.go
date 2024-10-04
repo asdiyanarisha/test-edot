@@ -71,6 +71,13 @@ func (s *e2eTestSuite) TestOrderProducts() {
 		}
 	})
 
+	s.T().Run("Test_Stock_After_Payment", func(t *testing.T) {
+		product := s.getProductDetail(products[0].Id)
+
+		s.Equal(0, product.ReservedStock, "check product reserved stock failed")
+		s.Equal(5, product.Stock, "check product stock failed")
+	})
+
 }
 
 func (s *e2eTestSuite) processTestOrder(product dto.ProductResponse, orderIds *[]int, jwtMaps *[]string) {

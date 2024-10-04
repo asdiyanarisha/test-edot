@@ -42,6 +42,31 @@ func (h *handler) ProductList(g *gin.Context) {
 	return
 }
 
+func (h *handler) DetailProduct(g *gin.Context) {
+	userClaim := g.Value("userClaim").(dto.UserClaimJwt)
+
+	productId, err := strconv.Atoi(g.Param("product_id"))
+	if err != nil {
+		g.JSON(http.StatusUnprocessableEntity, dto.ErrorResponse{
+			Error: "product_id is not valid",
+		})
+		return
+	}
+
+	res, err := h.service.GetProductDetail(g, userClaim, productId)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error: err.Error(),
+		})
+		return
+	}
+
+	g.JSON(http.StatusOK, dto.Response{
+		Message: "success fetch detail product",
+		Data:    res,
+	})
+}
+
 func (h *handler) TransferProduct(g *gin.Context) {
 	userClaim := g.Value("userClaim").(dto.UserClaimJwt)
 

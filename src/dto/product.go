@@ -38,4 +38,14 @@ type (
 		Shop  string  `json:"shop"`
 		Stock int     `json:"stock"`
 	}
+
+	ProductDetailResponse struct {
+		Id            int     `json:"id"`
+		Name          string  `json:"name"`
+		Price         float64 `json:"price"`
+		Sku           string  `json:"sku"`
+		Shop          string  `json:"shop"`
+		Stock         int     `json:"stock"`
+		ReservedStock int     `json:"reserved_stock"`
+	}
 )

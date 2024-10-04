@@ -13,4 +13,5 @@ func (h *handler) ProductBearerShopRouter(g *gin.RouterGroup) {
 	g.Use(middleware.BearerShop())
 	g.POST("", h.AddProduct)
 	g.POST("/:product_id/transfer", h.TransferProduct)
+	g.GET("/:product_id/detail", h.DetailProduct)
 }

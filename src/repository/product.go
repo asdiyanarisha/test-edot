@@ -10,7 +10,8 @@ type ProductRepositoryInterface interface {
 	Create(tx *gorm.DB, Product *models.Product) error
 	FindOne(ctx context.Context, selectField, query string, args ...any) (models.Product, error)
 	Begin() *gorm.DB
-	GetProductDetail(ctx context.Context, offset, limit int, selectField, query string, args ...any) ([]models.ProductDetail, error)
+	GetProductDetails(ctx context.Context, offset, limit int, selectField, query string, args ...any) ([]models.ProductDetail, error)
+	GetProductDetail(ctx context.Context, selectField, query string, args ...any) (models.ProductDetail, error)
 }
 
 type ProductRepository struct {
@@ -51,7 +52,7 @@ func (r *ProductRepository) FindOne(ctx context.Context, selectField, query stri
 	return Product, nil
 }
 
-func (r *ProductRepository) GetProductDetail(ctx context.Context, offset, limit int, selectField, query string, args ...any) ([]models.ProductDetail, error) {
+func (r *ProductRepository) GetProductDetails(ctx context.Context, offset, limit int, selectField, query string, args ...any) ([]models.ProductDetail, error) {
 	var products []models.ProductDetail
 	err := r.Database.WithContext(ctx).Model(models.ProductDetail{}).
 		Preload("Shop", func(db *gorm.DB) *gorm.DB {
@@ -66,4 +67,20 @@ func (r *ProductRepository) GetProductDetail(ctx context.Context, offset, limit 
 		return nil, err
 	}
 	return products, nil
+}
+
+func (r *ProductRepository) GetProductDetail(ctx context.Context, selectField, query string, args ...any) (models.ProductDetail, error) {
+	var product models.ProductDetail
+	err := r.Database.WithContext(ctx).Model(models.ProductDetail{}).
+		Preload("Shop", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id,name")
+		}).
+		Preload("Stock", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id,product_id,stock")
+		}).
+		Select(selectField).Where(query, args...).Take(&product).Error
+	if err != nil {
+		return models.ProductDetail{}, err
+	}
+	return product, nil
 }
